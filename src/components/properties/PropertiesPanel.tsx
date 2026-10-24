@@ -1,5 +1,5 @@
 import React from 'react';
-import { RectangleNode } from '../../types/scene';
+import type { RectangleNode } from '../../types/scene';
 import { Trash2 } from 'lucide-react';
 
 interface PropertiesPanelProps {
