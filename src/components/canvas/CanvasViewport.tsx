@@ -49,6 +49,15 @@ export const CanvasViewport: React.FC = () => {
         }
     }, [selectedIds]);
 
+    // Listen to SceneGraph changes to keep properties panel in sync live during resize / move
+    useEffect(() => {
+        return sceneGraphRef.current.subscribe((id, updatedNode) => {
+            if (selectedIdsRef.current.has(id)) {
+                setSelectedNode(updatedNode ? ({ ...updatedNode } as RectangleNode) : null);
+            }
+        });
+    }, []);
+
     // 2. Handlers for updating and deleting properties
     const handleUpdateSelected = (updates: Partial<RectangleNode>) => {
         if (!selectedNode) return;
@@ -144,10 +153,18 @@ export const CanvasViewport: React.FC = () => {
             setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
         };
 
+        // Helper to determine cursor based on handle
+        const getHandleCursor = (handle: string | null): string => {
+            if (handle === 'tl' || handle === 'br') return 'nwse-resize';
+            if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
+            return activeToolRef.current === 'rectangle' ? 'crosshair' : 'default';
+        };
+
         const onMouseDown = (e: MouseEvent) => {
             const rect = canvas.getBoundingClientRect();
             const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             const worldPoint = cameraRef.current.toWorld(screenPoint);
+            const currentZoom = cameraRef.current.getState().zoom;
 
             // Middle click or Space+Left click -> Pan
             if (e.button === 1 || (e.button === 0 && isSpacePressedRef.current)) {
@@ -162,7 +179,8 @@ export const CanvasViewport: React.FC = () => {
                         worldPoint,
                         sceneGraphRef.current,
                         selectedIdsRef.current,
-                        (newSelected) => setSelectedIds(newSelected)
+                        (newSelected) => setSelectedIds(newSelected),
+                        currentZoom
                     );
                 } else if (activeToolRef.current === 'rectangle') {
                     rectToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
@@ -176,6 +194,7 @@ export const CanvasViewport: React.FC = () => {
             const rect = canvas.getBoundingClientRect();
             const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             const worldPoint = cameraRef.current.toWorld(screenPoint);
+            const currentZoom = cameraRef.current.getState().zoom;
 
             if (isPanningRef.current) {
                 const dx = e.clientX - lastMousePosRef.current.x;
@@ -187,6 +206,17 @@ export const CanvasViewport: React.FC = () => {
 
             if (activeToolRef.current === 'select') {
                 selectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
+
+                // Update cursor dynamically when hovering over handles (if space isn't held)
+                if (!isSpacePressedRef.current) {
+                    const hoveredHandle = selectToolRef.current.onPointerHover(
+                        worldPoint,
+                        sceneGraphRef.current,
+                        selectedIdsRef.current,
+                        currentZoom
+                    );
+                    canvas.style.cursor = getHandleCursor(hoveredHandle);
+                }
             } else if (activeToolRef.current === 'rectangle') {
                 rectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
             }

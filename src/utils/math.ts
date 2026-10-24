@@ -61,3 +61,44 @@ export function isPointInsideBounds(
         point.y <= bounds.y + bounds.height
     );
 }
+export type ResizeHandleType = 'tl' | 'tr' | 'bl' | 'br';
+
+export interface HandleDescriptor {
+    type: ResizeHandleType;
+    x: number;
+    y: number;
+}
+
+/**
+ * Returns the 4 corner positions for a given bounding box.
+ */
+export function getCornerHandles(bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}): HandleDescriptor[] {
+    return [
+        { type: 'tl', x: bounds.x, y: bounds.y },
+        { type: 'tr', x: bounds.x + bounds.width, y: bounds.y },
+        { type: 'bl', x: bounds.x, y: bounds.y + bounds.height },
+        { type: 'br', x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    ];
+}
+
+/**
+ * Tests if a point hits a specific handle area (centered around handle.x, handle.y).
+ */
+export function isPointInsideHandle(
+    point: Point,
+    handle: HandleDescriptor,
+    handleSize: number
+): boolean {
+    const half = handleSize / 2;
+    return (
+        point.x >= handle.x - half &&
+        point.x <= handle.x + half &&
+        point.y >= handle.y - half &&
+        point.y <= handle.y + half
+    );
+}

@@ -1,4 +1,3 @@
-import React from 'react';
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 
 export default function App() {
