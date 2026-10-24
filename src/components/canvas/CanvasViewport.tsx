@@ -157,7 +157,9 @@ export const CanvasViewport: React.FC = () => {
         const getHandleCursor = (handle: string | null): string => {
             if (handle === 'tl' || handle === 'br') return 'nwse-resize';
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
-            return activeToolRef.current === 'rectangle' ? 'crosshair' : 'default';
+            if (activeToolRef.current === 'rectangle') return 'crosshair';
+            if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
+            return 'default';
         };
 
         const onMouseDown = (e: MouseEvent) => {
@@ -166,10 +168,11 @@ export const CanvasViewport: React.FC = () => {
             const worldPoint = cameraRef.current.toWorld(screenPoint);
             const currentZoom = cameraRef.current.getState().zoom;
 
-            // Middle click or Space+Left click -> Pan
-            if (e.button === 1 || (e.button === 0 && isSpacePressedRef.current)) {
+            // Middle click, Space+Left click, or Hand tool Left click -> Pan
+            if (e.button === 1 || (e.button === 0 && (isSpacePressedRef.current || activeToolRef.current === 'hand'))) {
                 isPanningRef.current = true;
                 lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+                canvas.style.cursor = 'grabbing';
                 return;
             }
 
@@ -224,6 +227,11 @@ export const CanvasViewport: React.FC = () => {
 
         const onMouseUp = () => {
             isPanningRef.current = false;
+            if (activeToolRef.current === 'hand') {
+                canvas.style.cursor = 'grab';
+            } else if (isSpacePressedRef.current) {
+                canvas.style.cursor = 'grab';
+            }
 
             if (activeToolRef.current === 'select') {
                 selectToolRef.current.onPointerUp();
@@ -253,6 +261,12 @@ export const CanvasViewport: React.FC = () => {
             if (e.key === 'v' || e.key === 'V') {
                 setActiveTool('select');
             }
+            if (e.key === 'h' || e.key === 'H') {
+                setActiveTool('hand');
+            }
+            if (e.key === 'c' || e.key === 'C') {
+                setActiveTool('comment');
+            }
             if (e.key === 'r' || e.key === 'R') {
                 setActiveTool('rectangle');
             }
@@ -272,7 +286,11 @@ export const CanvasViewport: React.FC = () => {
         const onKeyUp = (e: KeyboardEvent) => {
             if (e.code === 'Space') {
                 isSpacePressedRef.current = false;
-                canvas.style.cursor = activeToolRef.current === 'rectangle' ? 'crosshair' : 'default';
+                if (activeToolRef.current === 'hand') {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = activeToolRef.current === 'rectangle' ? 'crosshair' : 'default';
+                }
             }
         };
 
@@ -298,7 +316,13 @@ export const CanvasViewport: React.FC = () => {
     // Update cursor dynamically based on active tool
     useEffect(() => {
         if (canvasRef.current && !isSpacePressedRef.current) {
-            canvasRef.current.style.cursor = activeTool === 'rectangle' ? 'crosshair' : 'default';
+            if (activeTool === 'rectangle') {
+                canvasRef.current.style.cursor = 'crosshair';
+            } else if (activeTool === 'hand') {
+                canvasRef.current.style.cursor = 'grab';
+            } else {
+                canvasRef.current.style.cursor = 'default';
+            }
         }
     }, [activeTool]);
 
