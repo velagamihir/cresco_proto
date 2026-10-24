@@ -44,6 +44,10 @@ export class Camera {
             this.x = next.x;
             this.y = next.y;
             this.zoom = next.zoom;
+        } else if (e.shiftKey) {
+            // Shift + Scroll: map vertical wheel motion to horizontal pan
+            const dx = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+            this.pan(-dx, 0);
         } else {
             // Normal two-finger scroll or wheel pans the canvas
             this.pan(-e.deltaX, -e.deltaY);
