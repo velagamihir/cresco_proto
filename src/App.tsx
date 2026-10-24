@@ -1,11 +1,10 @@
+import React from 'react';
 import { CanvasViewport } from './components/canvas/CanvasViewport';
 
-function App() {
+export default function App() {
   return (
-    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <CanvasViewport />
     </div>
   );
 }
-
-export default App;
