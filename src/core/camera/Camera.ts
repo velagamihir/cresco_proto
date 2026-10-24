@@ -32,7 +32,8 @@ export class Camera {
     public handleWheel(e: WheelEvent, focalPoint: Point): void {
         // If pinch zooming on trackpad or holding Ctrl/Meta, scale zoom
         if (e.ctrlKey || e.metaKey) {
-            const zoomDelta = 1 - e.deltaY * 0.01;
+            // Exponential zoom prevents negative factors and large abrupt jumps
+            const zoomDelta = Math.exp(-e.deltaY * 0.005);
             const targetZoom = clamp(
                 this.zoom * zoomDelta,
                 CANVAS_CONFIG.MIN_ZOOM,
@@ -82,13 +83,19 @@ export class Camera {
     }
 
     /**
-     * Draws a Figma-style infinite dot grid scaled to the current viewport.
+     * Draws a Figma-style infinite dot grid scaled to the current viewport with adaptive LOD.
      */
     public renderGrid(ctx: CanvasRenderingContext2D, bounds: ScreenBounds): void {
         const topLeftWorld = this.toWorld({ x: 0, y: 0 });
         const bottomRightWorld = this.toWorld({ x: bounds.width, y: bounds.height });
 
-        const step = CANVAS_CONFIG.GRID_SIZE;
+        // Adaptive level of detail (LOD):
+        // Ensure dots are never spaced closer than 20 screen pixels
+        const minScreenStep = 20;
+        let step = CANVAS_CONFIG.GRID_SIZE;
+        while (step * this.zoom < minScreenStep) {
+            step *= 2;
+        }
 
         // Calculate snapped grid boundaries
         const startX = Math.floor(topLeftWorld.x / step) * step;
@@ -99,17 +106,18 @@ export class Camera {
         ctx.save();
         this.applyTransform(ctx);
 
-        // Render dots
+        // Render dots as a single batched path
         ctx.fillStyle = CANVAS_CONFIG.GRID_DOT_COLOR;
         const dotRadius = Math.max(1 / this.zoom, 0.75); // Keep dot visible at high/low zoom
 
+        ctx.beginPath();
         for (let x = startX; x <= endX; x += step) {
             for (let y = startY; y <= endY; y += step) {
-                ctx.beginPath();
+                ctx.moveTo(x + dotRadius, y);
                 ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-                ctx.fill();
             }
         }
+        ctx.fill();
 
         ctx.restore();
     }

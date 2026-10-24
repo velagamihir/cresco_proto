@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera } from '../../core/camera/Camera';
 import { CANVAS_CONFIG } from '../../constants/canvas';
+import { THEME } from '../../constants/themes/themes';
 
 export const CanvasViewport: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -20,6 +21,11 @@ export const CanvasViewport: React.FC = () => {
         if (!ctx) return;
 
         let animationFrameId: number;
+        let isDirty = true;
+
+        const requestRender = () => {
+            isDirty = true;
+        };
 
         // HiDPI resolution handling
         const resizeCanvas = () => {
@@ -29,29 +35,33 @@ export const CanvasViewport: React.FC = () => {
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
             ctx.scale(dpr, dpr);
+            requestRender();
         };
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Continuous render loop
+        // Render loop with dirty-flag checking
         const render = () => {
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            const dpr = window.devicePixelRatio || 1;
-            ctx.scale(dpr, dpr);
+            if (isDirty) {
+                isDirty = false;
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                const dpr = window.devicePixelRatio || 1;
+                ctx.scale(dpr, dpr);
 
-            // Clear background
-            ctx.fillStyle = CANVAS_CONFIG.BACKGROUND_COLOR;
-            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+                // Clear background
+                ctx.fillStyle = CANVAS_CONFIG.BACKGROUND_COLOR;
+                ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-            // Draw infinite grid
-            cameraRef.current.renderGrid(ctx, {
-                width: window.innerWidth,
-                height: window.innerHeight,
-            });
+                // Draw infinite grid
+                cameraRef.current.renderGrid(ctx, {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                });
 
-            ctx.restore();
+                ctx.restore();
+            }
             animationFrameId = requestAnimationFrame(render);
         };
 
@@ -64,7 +74,10 @@ export const CanvasViewport: React.FC = () => {
             const focalPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
             cameraRef.current.handleWheel(e, focalPoint);
-            setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
+            requestRender();
+
+            const nextPercent = Math.round(cameraRef.current.getState().zoom * 100);
+            setZoomPercent((prev) => (prev !== nextPercent ? nextPercent : prev));
         };
 
         const onMouseDown = (e: MouseEvent) => {
@@ -83,6 +96,7 @@ export const CanvasViewport: React.FC = () => {
             lastMousePosRef.current = { x: e.clientX, y: e.clientY };
 
             cameraRef.current.pan(dx, dy);
+            requestRender();
         };
 
         const onMouseUp = () => {
@@ -131,8 +145,8 @@ export const CanvasViewport: React.FC = () => {
                     position: 'absolute',
                     bottom: 16,
                     right: 16,
-                    background: '#2b2b2b',
-                    color: '#fff',
+                    background: THEME.ui.overlayBackground,
+                    color: THEME.ui.overlayText,
                     padding: '4px 10px',
                     borderRadius: '4px',
                     fontFamily: 'monospace',
