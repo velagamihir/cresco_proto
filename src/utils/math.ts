@@ -46,3 +46,18 @@ export function zoomAtFocalPoint(
         y: focalScreenPoint.y - worldPoint.y * nextZoom,
     };
 }
+
+/**
+ * Checks if a point in 2D space falls inside a bounding box.
+ */
+export function isPointInsideBounds(
+    point: Point,
+    bounds: { x: number; y: number; width: number; height: number }
+): boolean {
+    return (
+        point.x >= bounds.x &&
+        point.x <= bounds.x + bounds.width &&
+        point.y >= bounds.y &&
+        point.y <= bounds.y + bounds.height
+    );
+}
