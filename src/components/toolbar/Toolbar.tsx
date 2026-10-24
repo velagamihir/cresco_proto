@@ -49,7 +49,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onSelectTool }) =>
         <div
             style={{
                 position: 'absolute',
-                top: 16,
+                bottom: 20,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 backgroundColor: '#242424',
@@ -98,12 +98,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onSelectTool }) =>
                     >
                         {tool.icon}
 
-                        {/* Figma-style Tooltip */}
+                        {/* Figma-style Tooltip: floats above bottom toolbar */}
                         {isHovered && (
                             <div
                                 style={{
                                     position: 'absolute',
-                                    top: 'calc(100% + 8px)',
+                                    bottom: 'calc(100% + 8px)',
                                     left: '50%',
                                     transform: 'translateX(-50%)',
                                     backgroundColor: '#181818',
