@@ -256,10 +256,14 @@ export const CanvasViewport: React.FC = () => {
             if (e.key === 'r' || e.key === 'R') {
                 setActiveTool('rectangle');
             }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (e.key === 'Delete') {
                 for (const id of selectedIdsRef.current) {
                     sceneGraphRef.current.deleteNode(id);
                 }
+                selectedIdsRef.current = new Set();
+                setSelectedIds(new Set());
+            }
+            if (e.key === 'Backspace' || e.key === 'Escape') {
                 selectedIdsRef.current = new Set();
                 setSelectedIds(new Set());
             }
