@@ -1,0 +1,182 @@
+import React from 'react';
+import type { RectangleNode } from '../../types/scene';
+import { Trash2 } from 'lucide-react';
+
+interface PropertiesPanelProps {
+    selectedNode: RectangleNode | null;
+    onUpdate: (updates: Partial<RectangleNode>) => void;
+    onDelete: () => void;
+}
+
+export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
+    selectedNode,
+    onUpdate,
+    onDelete,
+}) => {
+    if (!selectedNode) {
+        return (
+            <aside
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: 240,
+                    height: '100%',
+                    backgroundColor: '#252525',
+                    borderLeft: '1px solid #333333',
+                    padding: 16,
+                    color: '#888888',
+                    fontSize: 13,
+                    fontFamily: 'sans-serif',
+                    userSelect: 'none',
+                    boxSizing: 'border-box',
+                    zIndex: 10,
+                }}
+            >
+                <p style={{ marginTop: 24, textAlign: 'center' }}>No layer selected</p>
+            </aside>
+        );
+    }
+
+    return (
+        <aside
+            style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 240,
+                height: '100%',
+                backgroundColor: '#252525',
+                borderLeft: '1px solid #333333',
+                padding: 16,
+                color: '#ffffff',
+                fontSize: 12,
+                fontFamily: 'sans-serif',
+                userSelect: 'none',
+                boxSizing: 'border-box',
+                zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+            }}
+        >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
+                    {selectedNode.type}
+                </span>
+                <button
+                    onClick={onDelete}
+                    title="Delete Shape"
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ff5c5c',
+                        cursor: 'pointer',
+                        padding: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                    }}
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
+
+            {/* Position & Size Grid */}
+            <div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Layout</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4 }}>
+                        <span style={{ color: '#888' }}>X</span>
+                        <input
+                            type="number"
+                            value={Math.round(selectedNode.x)}
+                            onChange={(e) => onUpdate({ x: Number(e.target.value) })}
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                        />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4 }}>
+                        <span style={{ color: '#888' }}>Y</span>
+                        <input
+                            type="number"
+                            value={Math.round(selectedNode.y)}
+                            onChange={(e) => onUpdate({ y: Number(e.target.value) })}
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                        />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4 }}>
+                        <span style={{ color: '#888' }}>W</span>
+                        <input
+                            type="number"
+                            value={Math.round(selectedNode.width)}
+                            onChange={(e) => onUpdate({ width: Math.max(1, Number(e.target.value)) })}
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                        />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4 }}>
+                        <span style={{ color: '#888' }}>H</span>
+                        <input
+                            type="number"
+                            value={Math.round(selectedNode.height)}
+                            onChange={(e) => onUpdate({ height: Math.max(1, Number(e.target.value)) })}
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                        />
+                    </label>
+                </div>
+            </div>
+
+            {/* Corner Radius */}
+            <div>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#aaaaaa' }}>Corner Radius</span>
+                    <input
+                        type="number"
+                        min={0}
+                        value={selectedNode.cornerRadius || 0}
+                        onChange={(e) => onUpdate({ cornerRadius: Math.max(0, Number(e.target.value)) })}
+                        style={{ width: 60, background: '#1e1e1e', border: '1px solid #333', color: '#fff', padding: '4px 6px', borderRadius: 4, outline: 'none' }}
+                    />
+                </label>
+            </div>
+
+            <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
+
+            {/* Fill Color */}
+            <div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Fill</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                        type="color"
+                        value={selectedNode.fill}
+                        onChange={(e) => onUpdate({ fill: e.target.value })}
+                        style={{
+                            width: 28,
+                            height: 28,
+                            padding: 0,
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            background: 'transparent',
+                        }}
+                    />
+                    <input
+                        type="text"
+                        value={selectedNode.fill.toUpperCase()}
+                        onChange={(e) => onUpdate({ fill: e.target.value })}
+                        style={{
+                            flex: 1,
+                            background: '#1e1e1e',
+                            border: '1px solid #333',
+                            color: '#fff',
+                            padding: '4px 8px',
+                            borderRadius: 4,
+                            fontFamily: 'monospace',
+                            outline: 'none',
+                        }}
+                    />
+                </div>
+            </div>
+        </aside>
+    );
+};
