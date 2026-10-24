@@ -2,16 +2,33 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Camera } from '../../core/camera/Camera';
 import { CANVAS_CONFIG } from '../../constants/canvas';
 import { THEME } from '../../constants/themes/themes';
+import { SceneGraph } from '../../core/scene/SceneGraph';
+import { Renderer } from '../../core/engine/Renderer';
 
 export const CanvasViewport: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const cameraRef = useRef<Camera>(new Camera(window.innerWidth / 2, window.innerHeight / 2, 1));
+    const sceneGraphRef = useRef<SceneGraph>(new SceneGraph());
     const isPanningRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
     const isSpacePressedRef = useRef(false);
 
     // Expose current zoom to UI
     const [zoomPercent, setZoomPercent] = useState(100);
+
+    // Initialize with a test rectangle centered near origin
+    useEffect(() => {
+        sceneGraphRef.current.addNode({
+            id: 'rect-1',
+            type: 'rectangle',
+            x: -100,
+            y: -75,
+            width: 200,
+            height: 150,
+            fill: '#0d99ff',
+            cornerRadius: 8,
+        });
+    }, []);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -54,11 +71,17 @@ export const CanvasViewport: React.FC = () => {
                 ctx.fillStyle = CANVAS_CONFIG.BACKGROUND_COLOR;
                 ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-                // Draw infinite grid
+                // 1. Draw infinite grid (camera.renderGrid handles applyTransform internally)
                 cameraRef.current.renderGrid(ctx, {
                     width: window.innerWidth,
                     height: window.innerHeight,
                 });
+
+                // 2. Render shapes in world space
+                ctx.save();
+                cameraRef.current.applyTransform(ctx);
+                Renderer.renderScene(ctx, sceneGraphRef.current.getAllNodes());
+                ctx.restore();
 
                 ctx.restore();
             }
