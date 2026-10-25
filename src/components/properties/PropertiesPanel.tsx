@@ -1,5 +1,7 @@
 import React from 'react';
-import type { SceneNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
+import type { SceneNode, FrameNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
+import { DEVICE_PRESETS, type DevicePreset } from '../../types/presets';
+import type { ToolType } from '../toolbar/Toolbar';
 import {
     Trash2,
     PanelRightClose,
@@ -25,6 +27,8 @@ interface PropertiesPanelProps {
     onBringToFront?: () => void;
     onSendToBack?: () => void;
     onToggleCollapse?: () => void;
+    activeTool?: ToolType;
+    onInsertPreset?: (preset: DevicePreset) => void;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
@@ -36,6 +40,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     onBringToFront,
     onSendToBack,
     onToggleCollapse,
+    activeTool,
+    onInsertPreset,
 }) => {
     if (!selectedNode) {
         return (
@@ -90,7 +96,60 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         </button>
                     )}
                 </div>
-                <p style={{ marginTop: 32, textAlign: 'center' }}>No layer selected</p>
+                {activeTool === 'frame' ? (
+                    <div style={{ marginTop: 16 }}>
+                        <div style={{ fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>
+                            Device Presets
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
+                            Click a preset to insert a frame, or drag on the canvas.
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', maxHeight: 'calc(100vh - 120px)' }}>
+                            {(['Desktop', 'Tablet', 'Mobile'] as const).map((cat) => (
+                                <div key={cat}>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                                        {cat}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        {DEVICE_PRESETS.filter(p => p.category === cat).map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => onInsertPreset?.(p)}
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    background: '#1e1e1e',
+                                                    border: '1px solid #333',
+                                                    borderRadius: 6,
+                                                    padding: '8px 10px',
+                                                    color: '#fff',
+                                                    fontSize: 12,
+                                                    cursor: 'pointer',
+                                                    textAlign: 'left',
+                                                    transition: 'all 0.15s ease',
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.borderColor = '#0d99ff';
+                                                    e.currentTarget.style.backgroundColor = '#2a2a2a';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.borderColor = '#333';
+                                                    e.currentTarget.style.backgroundColor = '#1e1e1e';
+                                                }}
+                                            >
+                                                <span style={{ fontWeight: 500 }}>{p.name}</span>
+                                                <span style={{ color: '#888', fontSize: 11 }}>{p.width} × {p.height}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <p style={{ marginTop: 32, textAlign: 'center' }}>No layer selected</p>
+                )}
             </aside>
         );
     }
@@ -123,6 +182,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         ? 'Vector'
                         : selectedNode.type === 'line'
                         ? ((selectedNode as LineNode).endMarker === 'arrow' ? 'Arrow' : 'Line')
+                        : selectedNode.type === 'frame'
+                        ? (selectedNode.name || 'Frame')
                         : selectedNode.type}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -348,8 +409,101 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
             </div>
 
-            {/* Corner Radius (Only applicable for rectangles) */}
-            {selectedNode.type === 'rectangle' && (
+            {/* Frame Properties */}
+            {selectedNode.type === 'frame' && (() => {
+                const frameNode = selectedNode as FrameNode;
+                return (
+                    <div>
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Frame</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {/* Frame Name */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={frameNode.name || 'Frame'}
+                                    onChange={(e) => onUpdate({ name: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        background: '#1e1e1e',
+                                        border: '1px solid #333',
+                                        color: '#fff',
+                                        padding: '5px 8px',
+                                        borderRadius: 4,
+                                        fontSize: 12,
+                                        outline: 'none',
+                                        boxSizing: 'border-box',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Preset Selector */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    Device Preset
+                                </label>
+                                <select
+                                    value=""
+                                    onChange={(e) => {
+                                        const preset = DEVICE_PRESETS.find((p) => p.id === e.target.value);
+                                        if (preset) {
+                                            onUpdate({
+                                                width: preset.width,
+                                                height: preset.height,
+                                                name: preset.name,
+                                            });
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        background: '#1e1e1e',
+                                        border: '1px solid #333',
+                                        color: '#fff',
+                                        padding: '5px 8px',
+                                        borderRadius: 4,
+                                        fontSize: 12,
+                                        outline: 'none',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <option value="" disabled>Choose preset...</option>
+                                    <optgroup label="Desktop">
+                                        {DEVICE_PRESETS.filter(p => p.category === 'Desktop').map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.width} × {p.height})</option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Tablet">
+                                        {DEVICE_PRESETS.filter(p => p.category === 'Tablet').map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.width} × {p.height})</option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Mobile">
+                                        {DEVICE_PRESETS.filter(p => p.category === 'Mobile').map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.width} × {p.height})</option>
+                                        ))}
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            {/* Clip Content Toggle */}
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={frameNode.clipContent !== false}
+                                    onChange={(e) => onUpdate({ clipContent: e.target.checked })}
+                                    style={{ accentColor: '#0d99ff', cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: 12, color: '#e0e0e0' }}>Clip content</span>
+                            </label>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Corner Radius (Applicable for rectangles and frames) */}
+            {(selectedNode.type === 'rectangle' || selectedNode.type === 'frame') && (
                 <div>
                     <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: '#aaaaaa' }}>Corner Radius</span>

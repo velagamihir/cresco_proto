@@ -141,6 +141,20 @@ export class SelectTool {
             width: n.width,
             height: n.height,
           });
+
+          // If dragging a frame, automatically move its children along with it
+          if (n.type === 'frame') {
+            for (const child of sceneGraph.getAllNodes()) {
+              if (child.parentId === n.id && !nextSelection.has(child.id)) {
+                initialMap.set(child.id, {
+                  x: child.x,
+                  y: child.y,
+                  width: child.width,
+                  height: child.height,
+                });
+              }
+            }
+          }
         }
       }
 
@@ -622,6 +636,35 @@ export class SelectTool {
                 y2: current.type === 'line' ? (current as LineNode).y2 : undefined,
               },
             });
+          }
+        }
+      }
+      // Auto-reparent non-frame nodes if their center falls inside a frame
+      for (const id of this.dragState.initialNodeBounds.keys()) {
+        const node = sceneGraph.getNode(id);
+        if (node && node.type !== 'frame') {
+          const centerX = node.x + node.width / 2;
+          const centerY = node.y + node.height / 2;
+          const allNodes = sceneGraph.getAllNodes();
+          let targetFrameId: string | undefined = undefined;
+
+          for (let i = allNodes.length - 1; i >= 0; i--) {
+            const candidate = allNodes[i];
+            if (candidate.type === 'frame' && candidate.id !== node.id) {
+              if (
+                centerX >= candidate.x &&
+                centerX <= candidate.x + candidate.width &&
+                centerY >= candidate.y &&
+                centerY <= candidate.y + candidate.height
+              ) {
+                targetFrameId = candidate.id;
+                break;
+              }
+            }
+          }
+
+          if (node.parentId !== targetFrameId) {
+            sceneGraph.updateNode(node.id, { parentId: targetFrameId });
           }
         }
       }

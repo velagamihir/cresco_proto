@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
     MousePointer2,
     Hand,
+    Frame as FrameIcon,
     MessageCircle,
     Square,
     Circle,
@@ -13,7 +14,7 @@ import {
     Redo2,
 } from 'lucide-react';
 
-export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'pen' | 'line' | 'arrow' | 'text';
+export type ToolType = 'select' | 'hand' | 'frame' | 'comment' | 'rectangle' | 'ellipse' | 'pen' | 'line' | 'arrow' | 'text';
 
 interface ToolbarProps {
     activeTool: ToolType;
@@ -43,6 +44,12 @@ const TOOLS: ToolItem[] = [
         label: 'Hand tool',
         shortcut: 'H',
         icon: <Hand size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'frame',
+        label: 'Frame',
+        shortcut: 'F',
+        icon: <FrameIcon size={15} strokeWidth={1.8} />,
     },
     {
         id: 'rectangle',

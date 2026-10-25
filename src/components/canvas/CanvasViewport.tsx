@@ -9,6 +9,8 @@ import { EllipseTool } from '../../core/tools/EllipseTool';
 import { TextTool } from '../../core/tools/TextTool';
 import { PenTool } from '../../core/tools/PenTool';
 import { LineTool } from '../../core/tools/LineTool';
+import { FrameTool } from '../../core/tools/FrameTool';
+import type { DevicePreset } from '../../types/presets';
 import { HistoryManager } from '../../core/history/HistoryManager';
 import { CreateNodeCommand } from '../../core/history/commands/CreateNodeCommand';
 import { DeleteNodeCommand } from '../../core/history/commands/DeleteNodeCommand';
@@ -34,6 +36,7 @@ export const CanvasViewport: React.FC = () => {
     const textToolRef = useRef<TextTool>(new TextTool());
     const penToolRef = useRef<PenTool>(new PenTool());
     const lineToolRef = useRef<LineTool>(new LineTool());
+    const frameToolRef = useRef<FrameTool>(new FrameTool());
     const historyRef = useRef<HistoryManager>(new HistoryManager());
 
     const [canUndo, setCanUndo] = useState(false);
@@ -90,6 +93,22 @@ export const CanvasViewport: React.FC = () => {
         }
         setActiveTool(tool);
     }, [syncNodes]);
+
+    const handleInsertPreset = useCallback((preset: DevicePreset) => {
+        const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const centerWorld = cameraRef.current.toWorld(centerScreen);
+        const frame = FrameTool.createFromPreset(preset, centerWorld, sceneGraphRef.current);
+        historyRef.current.push(
+            new CreateNodeCommand(
+                sceneGraphRef.current,
+                { ...frame },
+                (ids) => setSelectedIds(ids)
+            )
+        );
+        setSelectedIds(new Set([frame.id]));
+        handleSelectTool('select');
+        syncNodes();
+    }, [syncNodes, handleSelectTool]);
 
     // Subscribe to history changes for toolbar button states
     useEffect(() => {
@@ -257,7 +276,7 @@ export const CanvasViewport: React.FC = () => {
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
             if (handle === 't' || handle === 'b') return 'ns-resize';
             if (handle === 'l' || handle === 'r') return 'ew-resize';
-            if (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse' || activeToolRef.current === 'pen' || activeToolRef.current === 'line' || activeToolRef.current === 'arrow') return 'crosshair';
+            if (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse' || activeToolRef.current === 'pen' || activeToolRef.current === 'line' || activeToolRef.current === 'arrow' || activeToolRef.current === 'frame') return 'crosshair';
             if (activeToolRef.current === 'text') return 'text';
             if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
             return 'default';
@@ -337,6 +356,11 @@ export const CanvasViewport: React.FC = () => {
                             syncNodes();
                         }
                     );
+                } else if (activeToolRef.current === 'frame') {
+                    frameToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
+                        setSelectedIds(new Set([id]));
+                        syncNodes();
+                    });
                 }
             }
         };
@@ -376,6 +400,8 @@ export const CanvasViewport: React.FC = () => {
                 penToolRef.current.onPointerMove(worldPoint, currentZoom);
             } else if (activeToolRef.current === 'line' || activeToolRef.current === 'arrow') {
                 lineToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, e.shiftKey);
+            } else if (activeToolRef.current === 'frame') {
+                frameToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, e.shiftKey);
             }
         };
 
@@ -469,6 +495,26 @@ export const CanvasViewport: React.FC = () => {
                     handleSelectTool('select');
                     syncNodes();
                 });
+            } else if (activeToolRef.current === 'frame') {
+                frameToolRef.current.onPointerUp(sceneGraphRef.current, (completedId) => {
+                    if (completedId) {
+                        const createdNode = sceneGraphRef.current.getNode(completedId);
+                        if (createdNode) {
+                            historyRef.current.push(
+                                new CreateNodeCommand(
+                                    sceneGraphRef.current,
+                                    { ...createdNode },
+                                    (ids) => setSelectedIds(ids)
+                                )
+                            );
+                        }
+                        setSelectedIds(new Set([completedId]));
+                    } else {
+                        setSelectedIds(new Set());
+                    }
+                    handleSelectTool('select');
+                    syncNodes();
+                });
             }
         };
 
@@ -487,6 +533,9 @@ export const CanvasViewport: React.FC = () => {
             }
             if (e.key === 'h' || e.key === 'H') {
                 handleSelectTool('hand');
+            }
+            if (e.key === 'f' || e.key === 'F') {
+                handleSelectTool('frame');
             }
             if (e.key === 'c' || e.key === 'C') {
                 handleSelectTool('comment');
@@ -686,7 +735,7 @@ export const CanvasViewport: React.FC = () => {
                 if (activeToolRef.current === 'hand') {
                     canvas.style.cursor = 'grab';
                 } else {
-                    canvas.style.cursor = (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse' || activeToolRef.current === 'pen' || activeToolRef.current === 'line' || activeToolRef.current === 'arrow') ? 'crosshair' : 'default';
+                    canvas.style.cursor = (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse' || activeToolRef.current === 'pen' || activeToolRef.current === 'line' || activeToolRef.current === 'arrow' || activeToolRef.current === 'frame') ? 'crosshair' : 'default';
                 }
             }
         };
@@ -749,7 +798,7 @@ export const CanvasViewport: React.FC = () => {
     // Update cursor dynamically based on active tool
     useEffect(() => {
         if (canvasRef.current && !isSpacePressedRef.current) {
-            if (activeTool === 'rectangle' || activeTool === 'ellipse' || activeTool === 'pen' || activeTool === 'line' || activeTool === 'arrow') {
+            if (activeTool === 'rectangle' || activeTool === 'ellipse' || activeTool === 'pen' || activeTool === 'line' || activeTool === 'arrow' || activeTool === 'frame') {
                 canvasRef.current.style.cursor = 'crosshair';
             } else if (activeTool === 'text') {
                 canvasRef.current.style.cursor = 'text';
@@ -1030,6 +1079,8 @@ export const CanvasViewport: React.FC = () => {
                         }
                     }}
                     onToggleCollapse={() => setShowRightSidebar(false)}
+                    activeTool={activeTool}
+                    onInsertPreset={handleInsertPreset}
                 />
             ) : (
                 <button

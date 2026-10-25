@@ -7,6 +7,7 @@ import {
     PenTool as PenIcon,
     Minus,
     ArrowUpRight,
+    Frame as FrameIcon,
     Trash2,
     Layers,
     PanelLeftClose,
@@ -220,7 +221,9 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                         const isDragging = draggedNodeId === node.id;
                         const isOver = dragOverNodeId === node.id;
                         const isText = node.type === 'text';
-                        const layerName = isText
+                        const layerName = node.type === 'frame'
+                            ? (node.name || `Frame ${nodes.length - index}`)
+                            : isText
                             ? (node.text.trim() || 'Text')
                             : node.type === 'path'
                             ? `Vector ${nodes.length - index}`
@@ -246,6 +249,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                     display: 'flex',
                                     alignItems: 'center',
                                     padding: '7px 12px',
+                                    paddingLeft: node.parentId ? 26 : 12,
                                     position: 'relative',
                                     backgroundColor: isSelected ? '#0d99ff' : 'transparent',
                                     color: isSelected ? '#ffffff' : '#cccccc',
@@ -278,7 +282,15 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                 />
 
                                 {/* Node Type Icon */}
-                                {node.type === 'ellipse' ? (
+                                {node.type === 'frame' ? (
+                                    <FrameIcon
+                                        size={14}
+                                        style={{
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                ) : node.type === 'ellipse' ? (
                                     <Circle
                                         size={14}
                                         style={{

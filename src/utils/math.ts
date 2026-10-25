@@ -128,6 +128,16 @@ export function isPointInsideNode(
         const tolerance = Math.max(7, (node.strokeWidth || 2) + 4);
         return distanceToSegment(point, a, b) <= tolerance;
     }
+    if (node.type === 'frame') {
+        const inBody = isPointInsideBounds(point, node);
+        if (inBody) return true;
+        return (
+            point.x >= node.x &&
+            point.x <= node.x + 140 &&
+            point.y >= node.y - 18 &&
+            point.y <= node.y
+        );
+    }
     return isPointInsideBounds(point, node);
 }
 

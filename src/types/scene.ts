@@ -5,6 +5,8 @@ export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text' | 'path' | 'li
 export interface BaseNode {
     id: string;
     type: NodeType;
+    name?: string;
+    parentId?: string;
     x: number;
     y: number;
     width: number;
@@ -21,6 +23,12 @@ export interface RectangleNode extends BaseNode {
 
 export interface EllipseNode extends BaseNode {
     type: 'ellipse';
+}
+
+export interface FrameNode extends BaseNode {
+    type: 'frame';
+    cornerRadius?: number;
+    clipContent?: boolean;
 }
 
 export interface TextNode extends BaseNode {
@@ -60,4 +68,4 @@ export interface LineNode extends BaseNode {
     endMarker?: MarkerType;
 }
 
-export type SceneNode = RectangleNode | EllipseNode | TextNode | PathNode | LineNode;
+export type SceneNode = RectangleNode | EllipseNode | FrameNode | TextNode | PathNode | LineNode;

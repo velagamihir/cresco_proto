@@ -1,4 +1,4 @@
-import type { SceneNode, RectangleNode, EllipseNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
+import type { SceneNode, RectangleNode, EllipseNode, FrameNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
 import type { PenDrawingState } from '../tools/PenTool';
 import { getResizeHandles } from '../../utils/math';
 import { getFontString, measureTextLines } from '../../utils/text';
@@ -19,27 +19,27 @@ export class Renderer {
     editingNodeId?: string | null,
     snapGuides?: SnapGuide[]
   ): void {
-    // 1. Render Shapes
+    // Map frame children
+    const childMap = new Map<string, SceneNode[]>();
     for (const node of nodes) {
-      switch (node.type) {
-        case 'rectangle':
-          this.renderRectangle(ctx, node);
-          break;
-        case 'ellipse':
-          this.renderEllipse(ctx, node);
-          break;
-        case 'text':
-          // If node is currently being actively edited in HTML overlay, skip rendering text to prevent ghosting
-          if (node.id !== editingNodeId) {
-            this.renderText(ctx, node);
-          }
-          break;
-        case 'path':
-          this.renderPath(ctx, node);
-          break;
-        case 'line':
-          this.renderLine(ctx, node);
-          break;
+      if (node.parentId) {
+        const list = childMap.get(node.parentId) || [];
+        list.push(node);
+        childMap.set(node.parentId, list);
+      }
+    }
+
+    // 1. Render Shapes & Frames (top-level nodes)
+    for (const node of nodes) {
+      if (node.parentId) {
+        // Child nodes are rendered inside their parent frame
+        continue;
+      }
+      if (node.type === 'frame') {
+        const children = childMap.get(node.id) || [];
+        this.renderFrame(ctx, node, children, zoom, editingNodeId);
+      } else {
+        this.renderSingleNode(ctx, node, editingNodeId);
       }
     }
 
@@ -70,6 +70,101 @@ export class Renderer {
 
       ctx.restore();
     }
+  }
+
+  private static renderSingleNode(
+    ctx: CanvasRenderingContext2D,
+    node: SceneNode,
+    editingNodeId?: string | null
+  ): void {
+    switch (node.type) {
+      case 'rectangle':
+        this.renderRectangle(ctx, node);
+        break;
+      case 'ellipse':
+        this.renderEllipse(ctx, node);
+        break;
+      case 'text':
+        if (node.id !== editingNodeId) {
+          this.renderText(ctx, node);
+        }
+        break;
+      case 'path':
+        this.renderPath(ctx, node);
+        break;
+      case 'line':
+        this.renderLine(ctx, node);
+        break;
+      case 'frame':
+        this.renderFrame(ctx, node, [], 1, editingNodeId);
+        break;
+    }
+  }
+
+  private static renderFrame(
+    ctx: CanvasRenderingContext2D,
+    frame: FrameNode,
+    childNodes: SceneNode[],
+    zoom: number,
+    editingNodeId?: string | null
+  ): void {
+    ctx.save();
+
+    // 1. Frame Background Fill
+    ctx.fillStyle = frame.fill || '#ffffff';
+    if (frame.cornerRadius && frame.cornerRadius > 0) {
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(frame.x, frame.y, frame.width, frame.height, frame.cornerRadius);
+      } else {
+        ctx.rect(frame.x, frame.y, frame.width, frame.height);
+      }
+      ctx.fill();
+
+      if (frame.stroke && frame.strokeWidth && frame.strokeWidth > 0) {
+        ctx.strokeStyle = frame.stroke;
+        ctx.lineWidth = frame.strokeWidth;
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillRect(frame.x, frame.y, frame.width, frame.height);
+      if (frame.stroke && frame.strokeWidth && frame.strokeWidth > 0) {
+        ctx.strokeStyle = frame.stroke;
+        ctx.lineWidth = frame.strokeWidth;
+        ctx.strokeRect(frame.x, frame.y, frame.width, frame.height);
+      }
+    }
+
+    // 2. Render Children (with optional clipping)
+    if (childNodes.length > 0) {
+      ctx.save();
+      if (frame.clipContent !== false) {
+        ctx.beginPath();
+        if (frame.cornerRadius && frame.cornerRadius > 0 && typeof ctx.roundRect === 'function') {
+          ctx.roundRect(frame.x, frame.y, frame.width, frame.height, frame.cornerRadius);
+        } else {
+          ctx.rect(frame.x, frame.y, frame.width, frame.height);
+        }
+        ctx.clip();
+      }
+
+      for (const child of childNodes) {
+        this.renderSingleNode(ctx, child, editingNodeId);
+      }
+
+      ctx.restore();
+    }
+
+    // 3. Render Frame Header / Title Label
+    ctx.save();
+    const fontSize = Math.max(10, 11 / zoom);
+    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillStyle = '#9e9e9e';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(frame.name || 'Frame', frame.x, frame.y - 4 / zoom);
+    ctx.restore();
+
+    ctx.restore();
   }
 
   private static renderRectangle(
