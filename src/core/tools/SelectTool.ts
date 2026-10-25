@@ -2,8 +2,7 @@ import type { Point } from '../../types/camera';
 import { SceneGraph } from '../scene/SceneGraph';
 import {
   isPointInsideBounds,
-  getCornerHandles,
-  isPointInsideHandle,
+  hitTestResizeHandles,
 } from '../../utils/math';
 import type { ResizeHandleType } from '../../utils/math';
 interface DragState {
@@ -25,7 +24,7 @@ export class SelectTool {
   }
 
   /**
-   * Hit test handles or nodes on hover to change cursor style.
+   * Hit test handles or edges on hover to change cursor style.
    */
   public onPointerHover(
     worldPoint: Point,
@@ -33,19 +32,15 @@ export class SelectTool {
     selectedIds: Set<string>,
     zoom: number
   ): ResizeHandleType | null {
-    const handleHitSize = 10 / zoom;
-
-    // Check handles of single selected shape first
+    // Check handles / edges of single selected shape first
     if (selectedIds.size === 1) {
       const id = Array.from(selectedIds)[0];
       const node = sceneGraph.getNode(id);
       if (node) {
-        const handles = getCornerHandles(node);
-        for (const h of handles) {
-          if (isPointInsideHandle(worldPoint, h, handleHitSize)) {
-            this.hoveredHandle = h.type;
-            return h.type;
-          }
+        const hitHandle = hitTestResizeHandles(worldPoint, node, zoom);
+        if (hitHandle) {
+          this.hoveredHandle = hitHandle;
+          return hitHandle;
         }
       }
     }
@@ -55,7 +50,7 @@ export class SelectTool {
   }
 
   /**
-   * Pointer Down: Check handles first, then nodes.
+   * Pointer Down: Check handles/edges first, then nodes.
    */
   public onPointerDown(
     worldPoint: Point,
@@ -64,32 +59,28 @@ export class SelectTool {
     setSelectedIds: (ids: Set<string>) => void,
     zoom: number
   ): boolean {
-    const handleHitSize = 10 / zoom;
-
-    // 1. Check if clicking on an active resize handle
+    // 1. Check if clicking on an active resize handle or edge
     if (selectedIds.size === 1) {
       const selectedId = Array.from(selectedIds)[0];
       const node = sceneGraph.getNode(selectedId);
       if (node) {
-        const handles = getCornerHandles(node);
-        for (const h of handles) {
-          if (isPointInsideHandle(worldPoint, h, handleHitSize)) {
-            const initialMap = new Map();
-            initialMap.set(selectedId, {
-              x: node.x,
-              y: node.y,
-              width: node.width,
-              height: node.height,
-            });
+        const hitHandle = hitTestResizeHandles(worldPoint, node, zoom);
+        if (hitHandle) {
+          const initialMap = new Map();
+          initialMap.set(selectedId, {
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height,
+          });
 
-            this.dragState = {
-              mode: 'resize',
-              resizeHandle: h.type,
-              dragStartWorld: { ...worldPoint },
-              initialNodeBounds: initialMap,
-            };
-            return true;
-          }
+          this.dragState = {
+            mode: 'resize',
+            resizeHandle: hitHandle,
+            dragStartWorld: { ...worldPoint },
+            initialNodeBounds: initialMap,
+          };
+          return true;
         }
       }
     }

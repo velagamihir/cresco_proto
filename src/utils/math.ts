@@ -116,3 +116,59 @@ export function isPointInsideHandle(
         point.y <= handle.y + half
     );
 }
+
+/**
+ * Hit-tests a world point against a bounding box to determine if it is touching
+ * a corner handle or any of the 4 full border edges (Figma-style edge resizing).
+ */
+export function hitTestResizeHandles(
+    point: Point,
+    bounds: { x: number; y: number; width: number; height: number },
+    zoom: number
+): ResizeHandleType | null {
+    const cornerHitSize = 12 / zoom;
+    const halfCorner = cornerHitSize / 2;
+    const edgeTolerance = 7 / zoom;
+
+    const minX = Math.min(bounds.x, bounds.x + bounds.width);
+    const maxX = Math.max(bounds.x, bounds.x + bounds.width);
+    const minY = Math.min(bounds.y, bounds.y + bounds.height);
+    const maxY = Math.max(bounds.y, bounds.y + bounds.height);
+
+    // 1. Check 4 Corners first (they take priority)
+    if (Math.abs(point.x - minX) <= halfCorner && Math.abs(point.y - minY) <= halfCorner) {
+        return 'tl';
+    }
+    if (Math.abs(point.x - maxX) <= halfCorner && Math.abs(point.y - minY) <= halfCorner) {
+        return 'tr';
+    }
+    if (Math.abs(point.x - minX) <= halfCorner && Math.abs(point.y - maxY) <= halfCorner) {
+        return 'bl';
+    }
+    if (Math.abs(point.x - maxX) <= halfCorner && Math.abs(point.y - maxY) <= halfCorner) {
+        return 'br';
+    }
+
+    // 2. Check 4 Full Edges (along the entire border line)
+    const inVerticalSpan = point.y >= minY - halfCorner && point.y <= maxY + halfCorner;
+    const inHorizontalSpan = point.x >= minX - halfCorner && point.x <= maxX + halfCorner;
+
+    // Left edge
+    if (Math.abs(point.x - minX) <= edgeTolerance && inVerticalSpan) {
+        return 'l';
+    }
+    // Right edge
+    if (Math.abs(point.x - maxX) <= edgeTolerance && inVerticalSpan) {
+        return 'r';
+    }
+    // Top edge
+    if (Math.abs(point.y - minY) <= edgeTolerance && inHorizontalSpan) {
+        return 't';
+    }
+    // Bottom edge
+    if (Math.abs(point.y - maxY) <= edgeTolerance && inHorizontalSpan) {
+        return 'b';
+    }
+
+    return null;
+}
