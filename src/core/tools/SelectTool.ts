@@ -377,6 +377,144 @@ export class SelectTool {
         }
       }
 
+      // Snap to parent element during resizing
+      const otherNodes = sceneGraph
+        .getAllNodes()
+        .filter((n) => !this.dragState?.initialNodeBounds.has(n.id));
+
+      const selectedCenterX = newX + newWidth / 2;
+      const selectedCenterY = newY + newHeight / 2;
+
+      const enclosing = otherNodes.filter(
+        (n) =>
+          n.x <= selectedCenterX &&
+          selectedCenterX <= n.x + n.width &&
+          n.y <= selectedCenterY &&
+          selectedCenterY <= n.y + n.height
+      );
+      enclosing.sort((a, b) => a.width * a.height - b.width * b.height);
+
+      let parent = enclosing[0];
+      if (!parent && otherNodes.length > 0) {
+        const larger = otherNodes.filter(
+          (n) => n.width * n.height >= initial.width * initial.height
+        );
+        larger.sort((a, b) => a.width * a.height - b.width * b.height);
+        parent = larger[0] || otherNodes[0];
+      }
+
+      this.activeSnapGuides = [];
+
+      if (parent) {
+        const snapThreshold = 6 / zoom;
+        const parentXTargets = [
+          parent.x,
+          parent.x + parent.width / 2,
+          parent.x + parent.width,
+        ];
+        const parentYTargets = [
+          parent.y,
+          parent.y + parent.height / 2,
+          parent.y + parent.height,
+        ];
+
+        // 1. Horizontal edge resizing:
+        const isRightMoving = ['br', 'tr', 'r'].includes(handle);
+        const isLeftMoving = ['bl', 'tl', 'l'].includes(handle);
+
+        if (isRightMoving) {
+          const currentRight = newX + newWidth;
+          let bestDiff = snapThreshold + 1;
+          let bestTarget: number | null = null;
+          for (const target of parentXTargets) {
+            const diff = Math.abs(currentRight - target);
+            if (diff <= snapThreshold && diff < bestDiff) {
+              bestDiff = diff;
+              bestTarget = target;
+            }
+          }
+          if (bestTarget !== null && bestTarget - newX >= minSize) {
+            newWidth = bestTarget - newX;
+            this.activeSnapGuides.push({
+              orientation: 'vertical',
+              position: bestTarget,
+              start: Math.min(parent.y, newY) - 20,
+              end: Math.max(parent.y + parent.height, newY + newHeight) + 20,
+            });
+          }
+        } else if (isLeftMoving) {
+          const currentLeft = newX;
+          let bestDiff = snapThreshold + 1;
+          let bestTarget: number | null = null;
+          for (const target of parentXTargets) {
+            const diff = Math.abs(currentLeft - target);
+            if (diff <= snapThreshold && diff < bestDiff) {
+              bestDiff = diff;
+              bestTarget = target;
+            }
+          }
+          const fixedRight = initial.x + initial.width;
+          if (bestTarget !== null && fixedRight - bestTarget >= minSize) {
+            newX = bestTarget;
+            newWidth = fixedRight - bestTarget;
+            this.activeSnapGuides.push({
+              orientation: 'vertical',
+              position: bestTarget,
+              start: Math.min(parent.y, newY) - 20,
+              end: Math.max(parent.y + parent.height, newY + newHeight) + 20,
+            });
+          }
+        }
+
+        // 2. Vertical edge resizing:
+        const isBottomMoving = ['br', 'bl', 'b'].includes(handle);
+        const isTopMoving = ['tr', 'tl', 't'].includes(handle);
+
+        if (isBottomMoving) {
+          const currentBottom = newY + newHeight;
+          let bestDiff = snapThreshold + 1;
+          let bestTarget: number | null = null;
+          for (const target of parentYTargets) {
+            const diff = Math.abs(currentBottom - target);
+            if (diff <= snapThreshold && diff < bestDiff) {
+              bestDiff = diff;
+              bestTarget = target;
+            }
+          }
+          if (bestTarget !== null && bestTarget - newY >= minSize) {
+            newHeight = bestTarget - newY;
+            this.activeSnapGuides.push({
+              orientation: 'horizontal',
+              position: bestTarget,
+              start: Math.min(parent.x, newX) - 20,
+              end: Math.max(parent.x + parent.width, newX + newWidth) + 20,
+            });
+          }
+        } else if (isTopMoving) {
+          const currentTop = newY;
+          let bestDiff = snapThreshold + 1;
+          let bestTarget: number | null = null;
+          for (const target of parentYTargets) {
+            const diff = Math.abs(currentTop - target);
+            if (diff <= snapThreshold && diff < bestDiff) {
+              bestDiff = diff;
+              bestTarget = target;
+            }
+          }
+          const fixedBottom = initial.y + initial.height;
+          if (bestTarget !== null && fixedBottom - bestTarget >= minSize) {
+            newY = bestTarget;
+            newHeight = fixedBottom - bestTarget;
+            this.activeSnapGuides.push({
+              orientation: 'horizontal',
+              position: bestTarget,
+              start: Math.min(parent.x, newX) - 20,
+              end: Math.max(parent.x + parent.width, newX + newWidth) + 20,
+            });
+          }
+        }
+      }
+
       const node = sceneGraph.getNode(id);
       if (node && node.type === 'text') {
         sceneGraph.updateNode(id, {
