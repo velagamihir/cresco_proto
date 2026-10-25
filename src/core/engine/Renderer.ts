@@ -1,12 +1,14 @@
-import type { SceneNode, RectangleNode, EllipseNode } from '../../types/scene';
+import type { SceneNode, RectangleNode, EllipseNode, TextNode } from '../../types/scene';
 import { getResizeHandles } from '../../utils/math';
+import { getFontString, measureTextLines } from '../../utils/text';
 
 export class Renderer {
   public static renderScene(
     ctx: CanvasRenderingContext2D,
     nodes: SceneNode[],
     selectedIds: Set<string>,
-    zoom: number
+    zoom: number,
+    editingNodeId?: string | null
   ): void {
     // 1. Render Shapes
     for (const node of nodes) {
@@ -16,6 +18,12 @@ export class Renderer {
           break;
         case 'ellipse':
           this.renderEllipse(ctx, node);
+          break;
+        case 'text':
+          // If node is currently being actively edited in HTML overlay, skip rendering text to prevent ghosting
+          if (node.id !== editingNodeId) {
+            this.renderText(ctx, node);
+          }
           break;
       }
     }
@@ -78,6 +86,45 @@ export class Renderer {
       ctx.strokeStyle = ellipse.stroke;
       ctx.lineWidth = ellipse.strokeWidth;
       ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  private static renderText(
+    ctx: CanvasRenderingContext2D,
+    textNode: TextNode
+  ): void {
+    if (!textNode.text) return;
+
+    ctx.save();
+    ctx.fillStyle = textNode.fill || '#ffffff';
+    ctx.font = getFontString(textNode.fontSize, textNode.fontFamily, textNode.fontWeight);
+    ctx.textBaseline = 'top';
+
+    const metrics = measureTextLines(
+      textNode.text,
+      textNode.fontSize,
+      textNode.fontFamily,
+      textNode.fontWeight,
+      textNode.lineHeight || 1.25,
+      textNode.autoWidth ? undefined : textNode.width
+    );
+
+    const textAlign = textNode.textAlign || 'left';
+    ctx.textAlign = textAlign;
+
+    let targetX = textNode.x;
+    if (textAlign === 'center') {
+      targetX = textNode.x + textNode.width / 2;
+    } else if (textAlign === 'right') {
+      targetX = textNode.x + textNode.width;
+    }
+
+    for (let i = 0; i < metrics.lines.length; i++) {
+      const line = metrics.lines[i];
+      const lineY = textNode.y + i * metrics.lineHeight;
+      ctx.fillText(line, targetX, lineY);
     }
 
     ctx.restore();

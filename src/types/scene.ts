@@ -1,4 +1,4 @@
-export type NodeType = 'rectangle' | 'ellipse' | 'frame';
+export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text';
 
 export interface BaseNode {
     id: string;
@@ -21,4 +21,15 @@ export interface EllipseNode extends BaseNode {
     type: 'ellipse';
 }
 
-export type SceneNode = RectangleNode | EllipseNode;
+export interface TextNode extends BaseNode {
+    type: 'text';
+    text: string;
+    fontSize: number;
+    fontFamily: string;
+    fontWeight: number | string;
+    textAlign: 'left' | 'center' | 'right';
+    lineHeight?: number;
+    autoWidth?: boolean;
+}
+
+export type SceneNode = RectangleNode | EllipseNode | TextNode;

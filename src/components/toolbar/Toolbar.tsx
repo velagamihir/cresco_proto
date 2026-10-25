@@ -5,11 +5,12 @@ import {
     MessageCircle,
     Square,
     Circle,
+    Type,
     Undo2,
     Redo2,
 } from 'lucide-react';
 
-export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse';
+export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'text';
 
 interface ToolbarProps {
     activeTool: ToolType;
@@ -41,12 +42,6 @@ const TOOLS: ToolItem[] = [
         icon: <Hand size={15} strokeWidth={1.8} />,
     },
     {
-        id: 'comment',
-        label: 'Comment',
-        shortcut: 'C',
-        icon: <MessageCircle size={15} strokeWidth={1.8} />,
-    },
-    {
         id: 'rectangle',
         label: 'Rectangle',
         shortcut: 'R',
@@ -57,6 +52,18 @@ const TOOLS: ToolItem[] = [
         label: 'Ellipse',
         shortcut: 'O',
         icon: <Circle size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'text',
+        label: 'Text',
+        shortcut: 'T',
+        icon: <Type size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'comment',
+        label: 'Comment',
+        shortcut: 'C',
+        icon: <MessageCircle size={15} strokeWidth={1.8} />,
     },
 ];
 

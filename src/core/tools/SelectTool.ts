@@ -230,12 +230,23 @@ export class SelectTool {
         }
       }
 
-      sceneGraph.updateNode(id, {
-        x: newX,
-        y: newY,
-        width: newWidth,
-        height: newHeight,
-      });
+      const node = sceneGraph.getNode(id);
+      if (node && node.type === 'text') {
+        sceneGraph.updateNode(id, {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+          autoWidth: false,
+        });
+      } else {
+        sceneGraph.updateNode(id, {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+        });
+      }
     }
   }
 

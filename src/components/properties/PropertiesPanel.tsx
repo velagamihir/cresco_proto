@@ -7,7 +7,12 @@ import {
     ChevronDown,
     ChevronsUp,
     ChevronsDown,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
 } from 'lucide-react';
+import { measureTextLines } from '../../utils/text';
+import type { TextNode } from '../../types/scene';
 
 interface PropertiesPanelProps {
     selectedNode: SceneNode | null;
@@ -343,6 +348,149 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
             )}
 
+            {/* Text Properties (Only applicable for text) */}
+            {selectedNode.type === 'text' && (() => {
+                const textNode = selectedNode as TextNode;
+                const updateTextProperty = (updates: Partial<TextNode>) => {
+                    const nextText = updates.text !== undefined ? updates.text : textNode.text;
+                    const nextSize = updates.fontSize !== undefined ? updates.fontSize : textNode.fontSize;
+                    const nextFamily = updates.fontFamily !== undefined ? updates.fontFamily : textNode.fontFamily;
+                    const nextWeight = updates.fontWeight !== undefined ? updates.fontWeight : textNode.fontWeight;
+                    const metrics = measureTextLines(
+                        nextText,
+                        nextSize,
+                        nextFamily,
+                        nextWeight,
+                        textNode.lineHeight,
+                        textNode.autoWidth ? undefined : textNode.width
+                    );
+                    onUpdate({
+                        ...updates,
+                        width: textNode.autoWidth ? metrics.width : textNode.width,
+                        height: metrics.height,
+                    });
+                };
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontWeight: 500, color: '#aaaaaa' }}>Typography</div>
+
+                        {/* Font Family */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <select
+                                value={textNode.fontFamily || 'Inter'}
+                                onChange={(e) => updateTextProperty({ fontFamily: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    backgroundColor: '#1e1e1e',
+                                    border: '1px solid #333',
+                                    color: '#ffffff',
+                                    padding: '5px 8px',
+                                    borderRadius: 4,
+                                    fontSize: 12,
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <option value="Inter">Inter</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Helvetica">Helvetica</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                            </select>
+                        </div>
+
+                        {/* Font Weight and Size */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 8 }}>
+                            <select
+                                value={String(textNode.fontWeight || 400)}
+                                onChange={(e) => updateTextProperty({ fontWeight: Number(e.target.value) })}
+                                style={{
+                                    backgroundColor: '#1e1e1e',
+                                    border: '1px solid #333',
+                                    color: '#ffffff',
+                                    padding: '5px 8px',
+                                    borderRadius: 4,
+                                    fontSize: 12,
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <option value="400">Regular</option>
+                                <option value="500">Medium</option>
+                                <option value="600">SemiBold</option>
+                                <option value="700">Bold</option>
+                            </select>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4, border: '1px solid #333' }}>
+                                <input
+                                    type="number"
+                                    min={8}
+                                    max={256}
+                                    value={textNode.fontSize || 16}
+                                    onChange={(e) => updateTextProperty({ fontSize: Math.max(8, Number(e.target.value)) })}
+                                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none', fontSize: 12 }}
+                                />
+                                <span style={{ color: '#888', fontSize: 11 }}>px</span>
+                            </label>
+                        </div>
+
+                        {/* Text Alignment */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#888', fontSize: 11 }}>Alignment</span>
+                            <div style={{ display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333', overflow: 'hidden' }}>
+                                <button
+                                    onClick={() => updateTextProperty({ textAlign: 'left' })}
+                                    title="Align Left"
+                                    style={{
+                                        background: (textNode.textAlign || 'left') === 'left' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: (textNode.textAlign || 'left') === 'left' ? '#ffffff' : '#888888',
+                                        padding: '5px 8px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignLeft size={13} />
+                                </button>
+                                <button
+                                    onClick={() => updateTextProperty({ textAlign: 'center' })}
+                                    title="Align Center"
+                                    style={{
+                                        background: textNode.textAlign === 'center' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: textNode.textAlign === 'center' ? '#ffffff' : '#888888',
+                                        padding: '5px 8px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignCenter size={13} />
+                                </button>
+                                <button
+                                    onClick={() => updateTextProperty({ textAlign: 'right' })}
+                                    title="Align Right"
+                                    style={{
+                                        background: textNode.textAlign === 'right' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: textNode.textAlign === 'right' ? '#ffffff' : '#888888',
+                                        padding: '5px 8px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignRight size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 

@@ -3,6 +3,7 @@ import type { SceneNode } from '../../types/scene';
 import {
     Square,
     Circle,
+    Type,
     Trash2,
     Layers,
     PanelLeftClose,
@@ -208,15 +209,17 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                     >
                         No layers created yet.
                         <br />
-                        Press <strong style={{ color: '#aaa' }}>R</strong> or <strong style={{ color: '#aaa' }}>O</strong> to draw.
+                        Press <strong style={{ color: '#aaa' }}>R</strong>, <strong style={{ color: '#aaa' }}>O</strong>, or <strong style={{ color: '#aaa' }}>T</strong> to draw.
                     </div>
                 ) : (
                     reversedNodes.map((node, index) => {
                         const isSelected = selectedIds.has(node.id);
                         const isDragging = draggedNodeId === node.id;
                         const isOver = dragOverNodeId === node.id;
-                        const typeName = node.type === 'ellipse' ? 'Ellipse' : 'Rectangle';
-                        const layerName = `${typeName} ${nodes.length - index}`;
+                        const isText = node.type === 'text';
+                        const layerName = isText
+                            ? (node.text.trim() || 'Text')
+                            : `${node.type === 'ellipse' ? 'Ellipse' : 'Rectangle'} ${nodes.length - index}`;
 
                         return (
                             <div
@@ -270,6 +273,14 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                 {/* Node Type Icon */}
                                 {node.type === 'ellipse' ? (
                                     <Circle
+                                        size={14}
+                                        style={{
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                ) : node.type === 'text' ? (
+                                    <Type
                                         size={14}
                                         style={{
                                             color: isSelected ? '#ffffff' : '#888888',

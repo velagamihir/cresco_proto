@@ -6,6 +6,7 @@ import { Renderer } from '../../core/engine/Renderer';
 import { SelectTool } from '../../core/tools/SelectTool';
 import { RectTool } from '../../core/tools/RectTool';
 import { EllipseTool } from '../../core/tools/EllipseTool';
+import { TextTool } from '../../core/tools/TextTool';
 import { HistoryManager } from '../../core/history/HistoryManager';
 import { CreateNodeCommand } from '../../core/history/commands/CreateNodeCommand';
 import { DeleteNodeCommand } from '../../core/history/commands/DeleteNodeCommand';
@@ -16,8 +17,10 @@ import { Toolbar } from '../toolbar/Toolbar';
 import { PropertiesPanel } from '../properties/PropertiesPanel';
 import { LayersPanel } from '../layers/LayersPanel';
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
-import type { SceneNode } from '../../types/scene';
+import type { SceneNode, TextNode } from '../../types/scene';
 import type { ToolType } from '../toolbar/Toolbar';
+import { isPointInsideNode } from '../../utils/math';
+import { measureTextLines } from '../../utils/text';
 
 export const CanvasViewport: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -26,6 +29,7 @@ export const CanvasViewport: React.FC = () => {
     const selectToolRef = useRef<SelectTool>(new SelectTool());
     const rectToolRef = useRef<RectTool>(new RectTool());
     const ellipseToolRef = useRef<EllipseTool>(new EllipseTool());
+    const textToolRef = useRef<TextTool>(new TextTool());
     const historyRef = useRef<HistoryManager>(new HistoryManager());
 
     const [canUndo, setCanUndo] = useState(false);
@@ -34,6 +38,12 @@ export const CanvasViewport: React.FC = () => {
     const [activeTool, setActiveTool] = useState<ToolType>('select');
     const activeToolRef = useRef<ToolType>('select');
     activeToolRef.current = activeTool;
+
+    // Inline text editing state
+    const [editingTextId, setEditingTextId] = useState<string | null>(null);
+    const editingTextIdRef = useRef<string | null>(null);
+    editingTextIdRef.current = editingTextId;
+    const editingInitialStateRef = useRef<{ id: string; node: TextNode; isNew: boolean } | null>(null);
 
     const isPanningRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
@@ -87,6 +97,57 @@ export const CanvasViewport: React.FC = () => {
         selectedIdsRef.current = new Set();
         setSelectedIds(new Set());
     }, []);
+
+    const startEditingText = useCallback((id: string, isNew: boolean = false) => {
+        const node = sceneGraphRef.current.getNode(id) as TextNode | undefined;
+        if (!node) return;
+        editingInitialStateRef.current = { id, node: { ...node }, isNew };
+        setEditingTextId(id);
+        setSelectedIds(new Set([id]));
+    }, []);
+
+    const commitEditingText = useCallback(() => {
+        const initial = editingInitialStateRef.current;
+        editingInitialStateRef.current = null;
+        if (!initial) {
+            setEditingTextId(null);
+            return;
+        }
+
+        const current = sceneGraphRef.current.getNode(initial.id) as TextNode | undefined;
+        if (current) {
+            if (current.text.trim() === '') {
+                sceneGraphRef.current.deleteNode(current.id);
+                setSelectedIds(new Set());
+            } else if (initial.isNew) {
+                historyRef.current.push(
+                    new CreateNodeCommand(
+                        sceneGraphRef.current,
+                        { ...current },
+                        (ids) => setSelectedIds(ids)
+                    )
+                );
+            } else if (
+                current.text !== initial.node.text ||
+                current.width !== initial.node.width ||
+                current.height !== initial.node.height
+            ) {
+                historyRef.current.push(
+                    new TransformNodeCommand(
+                        sceneGraphRef.current,
+                        [{
+                            id: current.id,
+                            before: { ...initial.node },
+                            after: { ...current },
+                        }],
+                        (ids) => setSelectedIds(ids)
+                    )
+                );
+            }
+        }
+        setEditingTextId(null);
+        syncNodes();
+    }, [syncNodes]);
 
 
     // Subscribe to SceneGraph updates
@@ -149,7 +210,8 @@ export const CanvasViewport: React.FC = () => {
                 ctx,
                 sceneGraphRef.current.getAllNodes(),
                 selectedIdsRef.current,
-                cameraRef.current.getState().zoom
+                cameraRef.current.getState().zoom,
+                editingTextIdRef.current
             );
             ctx.restore();
 
@@ -165,6 +227,7 @@ export const CanvasViewport: React.FC = () => {
             if (handle === 't' || handle === 'b') return 'ns-resize';
             if (handle === 'l' || handle === 'r') return 'ew-resize';
             if (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse') return 'crosshair';
+            if (activeToolRef.current === 'text') return 'text';
             if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
             return 'default';
         };
@@ -192,6 +255,10 @@ export const CanvasViewport: React.FC = () => {
             }
 
             if (e.button === 0) {
+                if (editingTextIdRef.current) {
+                    commitEditingText();
+                }
+
                 if (activeToolRef.current === 'select') {
                     selectToolRef.current.onPointerDown(
                         worldPoint,
@@ -207,6 +274,11 @@ export const CanvasViewport: React.FC = () => {
                     });
                 } else if (activeToolRef.current === 'ellipse') {
                     ellipseToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
+                        setSelectedIds(new Set([id]));
+                        syncNodes();
+                    });
+                } else if (activeToolRef.current === 'text') {
+                    textToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
                         setSelectedIds(new Set([id]));
                         syncNodes();
                     });
@@ -243,6 +315,8 @@ export const CanvasViewport: React.FC = () => {
                 rectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
             } else if (activeToolRef.current === 'ellipse') {
                 ellipseToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, e.shiftKey);
+            } else if (activeToolRef.current === 'text') {
+                textToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
             }
         };
 
@@ -306,6 +380,14 @@ export const CanvasViewport: React.FC = () => {
                     setActiveTool('select');
                     syncNodes();
                 });
+            } else if (activeToolRef.current === 'text') {
+                textToolRef.current.onPointerUp(sceneGraphRef.current, (completedId) => {
+                    if (completedId) {
+                        startEditingText(completedId, true);
+                    }
+                    setActiveTool('select');
+                    syncNodes();
+                });
             }
         };
 
@@ -333,6 +415,9 @@ export const CanvasViewport: React.FC = () => {
             }
             if (e.key === 'o' || e.key === 'O') {
                 setActiveTool('ellipse');
+            }
+            if (e.key === 't' || e.key === 'T') {
+                setActiveTool('text');
             }
 
             // Undo / Redo Shortcuts: Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Cmd/Ctrl+Y
@@ -437,8 +522,26 @@ export const CanvasViewport: React.FC = () => {
             }
         };
 
+        const onDoubleClick = (e: MouseEvent) => {
+            const rect = canvas.getBoundingClientRect();
+            const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            const worldPoint = cameraRef.current.toWorld(screenPoint);
+            const allNodes = sceneGraphRef.current.getAllNodes();
+
+            for (let i = allNodes.length - 1; i >= 0; i--) {
+                const node = allNodes[i];
+                if (isPointInsideNode(worldPoint, node)) {
+                    if (node.type === 'text') {
+                        startEditingText(node.id, false);
+                    }
+                    break;
+                }
+            }
+        };
+
         canvas.addEventListener('wheel', onWheel, { passive: false });
         canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('dblclick', onDoubleClick);
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
         window.addEventListener('keydown', onKeyDown);
@@ -449,18 +552,21 @@ export const CanvasViewport: React.FC = () => {
             window.removeEventListener('resize', resizeCanvas);
             canvas.removeEventListener('wheel', onWheel);
             canvas.removeEventListener('mousedown', onMouseDown);
+            canvas.removeEventListener('dblclick', onDoubleClick);
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [syncNodes, handleResetZoom, deselect]);
+    }, [syncNodes, handleResetZoom, deselect, startEditingText, commitEditingText]);
 
     // Update cursor dynamically based on active tool
     useEffect(() => {
         if (canvasRef.current && !isSpacePressedRef.current) {
             if (activeTool === 'rectangle' || activeTool === 'ellipse') {
                 canvasRef.current.style.cursor = 'crosshair';
+            } else if (activeTool === 'text') {
+                canvasRef.current.style.cursor = 'text';
             } else if (activeTool === 'hand') {
                 canvasRef.current.style.cursor = 'grab';
             } else {
@@ -776,6 +882,76 @@ export const CanvasViewport: React.FC = () => {
 
             {/* Canvas */}
             <canvas ref={canvasRef} style={{ display: 'block' }} />
+
+            {/* Inline Text Editing Overlay (Figma style) */}
+            {editingTextId && (() => {
+                const textNode = nodesList.find((n) => n.id === editingTextId) as TextNode | undefined;
+                if (!textNode) return null;
+
+                const zoom = cameraRef.current.getState().zoom;
+                const screenPos = cameraRef.current.toScreen({ x: textNode.x, y: textNode.y });
+                const scaledFontSize = textNode.fontSize * zoom;
+                const scaledLineHeight = (textNode.lineHeight || 1.25) * scaledFontSize;
+                const widthPx = textNode.autoWidth ? Math.max(60, textNode.width * zoom) : textNode.width * zoom;
+
+                return (
+                    <textarea
+                        autoFocus
+                        value={textNode.text}
+                        placeholder={textNode.autoWidth && !textNode.text ? 'Type text...' : ''}
+                        onChange={(e) => {
+                            const newText = e.target.value;
+                            const metrics = measureTextLines(
+                                newText,
+                                textNode.fontSize,
+                                textNode.fontFamily,
+                                textNode.fontWeight,
+                                textNode.lineHeight || 1.25,
+                                textNode.autoWidth ? undefined : textNode.width
+                            );
+                            sceneGraphRef.current.updateNode(textNode.id, {
+                                text: newText,
+                                width: textNode.autoWidth ? metrics.width : textNode.width,
+                                height: metrics.height,
+                            });
+                            syncNodes();
+                        }}
+                        onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Escape') {
+                                (e.currentTarget as HTMLTextAreaElement).blur();
+                            }
+                        }}
+                        onBlur={commitEditingText}
+                        style={{
+                            position: 'absolute',
+                            left: `${screenPos.x}px`,
+                            top: `${screenPos.y}px`,
+                            width: `${widthPx}px`,
+                            minWidth: `${Math.max(60, textNode.fontSize * zoom)}px`,
+                            height: `${Math.max(scaledLineHeight, textNode.height * zoom)}px`,
+                            fontSize: `${scaledFontSize}px`,
+                            lineHeight: `${scaledLineHeight}px`,
+                            fontFamily: `${textNode.fontFamily}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
+                            fontWeight: textNode.fontWeight,
+                            textAlign: textNode.textAlign || 'left',
+                            color: textNode.fill || '#ffffff',
+                            caretColor: '#0d99ff',
+                            backgroundColor: 'transparent',
+                            border: '1.5px solid #0d99ff',
+                            outline: 'none',
+                            resize: 'none',
+                            padding: 0,
+                            margin: 0,
+                            overflow: 'hidden',
+                            whiteSpace: textNode.autoWidth ? 'pre' : 'pre-wrap',
+                            wordBreak: 'break-word',
+                            boxSizing: 'border-box',
+                            zIndex: 25,
+                        }}
+                    />
+                );
+            })()}
 
             {/* Zoom indicator / Reset zoom button */}
             <button
