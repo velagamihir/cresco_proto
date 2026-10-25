@@ -45,8 +45,73 @@ export class SceneGraph {
         this.notify(id, null);
     }
 
+    public setNodes(newNodes: SceneNode[]): void {
+        this.nodes.clear();
+        for (const n of newNodes) {
+            this.nodes.set(n.id, n);
+        }
+        this.notify('*', null);
+    }
+
+    public moveUp(id: string): void {
+        const list = Array.from(this.nodes.values());
+        const index = list.findIndex((n) => n.id === id);
+        if (index === -1 || index === list.length - 1) return;
+        // Swap with the element above (higher z-index)
+        const temp = list[index];
+        list[index] = list[index + 1];
+        list[index + 1] = temp;
+        this.setNodes(list);
+    }
+
+    public moveDown(id: string): void {
+        const list = Array.from(this.nodes.values());
+        const index = list.findIndex((n) => n.id === id);
+        if (index <= 0) return;
+        // Swap with the element below (lower z-index)
+        const temp = list[index];
+        list[index] = list[index - 1];
+        list[index - 1] = temp;
+        this.setNodes(list);
+    }
+
+    public bringToFront(id: string): void {
+        const list = Array.from(this.nodes.values());
+        const index = list.findIndex((n) => n.id === id);
+        if (index === -1 || index === list.length - 1) return;
+        const [node] = list.splice(index, 1);
+        list.push(node);
+        this.setNodes(list);
+    }
+
+    public sendToBack(id: string): void {
+        const list = Array.from(this.nodes.values());
+        const index = list.findIndex((n) => n.id === id);
+        if (index <= 0) return;
+        const [node] = list.splice(index, 1);
+        list.unshift(node);
+        this.setNodes(list);
+    }
+
+    public reorder(fromIndex: number, toIndex: number): void {
+        const list = Array.from(this.nodes.values());
+        if (
+            fromIndex < 0 ||
+            fromIndex >= list.length ||
+            toIndex < 0 ||
+            toIndex >= list.length ||
+            fromIndex === toIndex
+        ) {
+            return;
+        }
+        const [moved] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, moved);
+        this.setNodes(list);
+    }
+
     public clear(): void {
         this.nodes.clear();
         this.notify('*', null);
     }
 }
+

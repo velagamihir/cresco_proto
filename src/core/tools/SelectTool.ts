@@ -23,6 +23,10 @@ export class SelectTool {
     return this.hoveredHandle;
   }
 
+  public isDragging(): boolean {
+    return this.dragState !== null;
+  }
+
   /**
    * Hit test handles or edges on hover to change cursor style.
    */

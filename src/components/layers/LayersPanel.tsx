@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SceneNode } from '../../types/scene';
-import { Square, Circle, Trash2, Layers, PanelLeftClose } from 'lucide-react';
+import {
+    Square,
+    Circle,
+    Trash2,
+    Layers,
+    PanelLeftClose,
+    GripVertical,
+    ChevronUp,
+    ChevronDown,
+    ChevronsUp,
+    ChevronsDown,
+} from 'lucide-react';
 
 interface LayersPanelProps {
     nodes: SceneNode[];
     selectedIds: Set<string>;
     onSelectNode: (id: string, isShift: boolean) => void;
     onDeleteNode: (id: string) => void;
+    onReorderNodes: (fromIndex: number, toIndex: number) => void;
+    onMoveUp?: (id: string) => void;
+    onMoveDown?: (id: string) => void;
+    onBringToFront?: (id: string) => void;
+    onSendToBack?: (id: string) => void;
     onToggleCollapse?: () => void;
 }
 
@@ -15,10 +31,91 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
     selectedIds,
     onSelectNode,
     onDeleteNode,
+    onReorderNodes,
+    onMoveUp,
+    onMoveDown,
+    onBringToFront,
+    onSendToBack,
     onToggleCollapse,
 }) => {
     // In graphic tools, top-most z-index renders at the top of the layer list
     const reversedNodes = [...nodes].reverse();
+
+    // Drag-and-drop state
+    const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+    const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
+    const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null);
+
+    const handleDragStart = (e: React.DragEvent, id: string) => {
+        setDraggedNodeId(id);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+    };
+
+    const handleDragOver = (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        if (draggedNodeId === targetId) {
+            setDragOverNodeId(null);
+            setDropPosition(null);
+            return;
+        }
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const pos = e.clientY < midY ? 'above' : 'below';
+
+        setDragOverNodeId(targetId);
+        setDropPosition(pos);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        // Clear indicator if leaving to an outside container
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragOverNodeId(null);
+            setDropPosition(null);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        if (!draggedNodeId || draggedNodeId === targetId) {
+            setDraggedNodeId(null);
+            setDragOverNodeId(null);
+            setDropPosition(null);
+            return;
+        }
+
+        const sourceIndex = nodes.findIndex((n) => n.id === draggedNodeId);
+        const targetIndex = nodes.findIndex((n) => n.id === targetId);
+
+        if (sourceIndex === -1 || targetIndex === -1) {
+            setDraggedNodeId(null);
+            setDragOverNodeId(null);
+            setDropPosition(null);
+            return;
+        }
+
+        // In reversedNodes:
+        // 'above' target in the UI means HIGHER z-index in nodes array (so after target in nodes)
+        // 'below' target in the UI means LOWER z-index in nodes array (so before target in nodes)
+        let newTargetIndex = targetIndex;
+        if (dropPosition === 'above') {
+            // Placing above target in reversed list -> targetIndex + 1 in nodes array
+            newTargetIndex = sourceIndex < targetIndex ? targetIndex : targetIndex + 1;
+        } else {
+            // Placing below target in reversed list -> targetIndex in nodes array
+            newTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+        }
+
+        newTargetIndex = Math.max(0, Math.min(nodes.length - 1, newTargetIndex));
+
+        onReorderNodes(sourceIndex, newTargetIndex);
+        setDraggedNodeId(null);
+        setDragOverNodeId(null);
+        setDropPosition(null);
+    };
 
     return (
         <aside
@@ -116,35 +213,60 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                 ) : (
                     reversedNodes.map((node, index) => {
                         const isSelected = selectedIds.has(node.id);
-                        // Default friendly name based on node type
+                        const isDragging = draggedNodeId === node.id;
+                        const isOver = dragOverNodeId === node.id;
                         const typeName = node.type === 'ellipse' ? 'Ellipse' : 'Rectangle';
                         const layerName = `${typeName} ${nodes.length - index}`;
 
                         return (
                             <div
                                 key={node.id}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, node.id)}
+                                onDragOver={(e) => handleDragOver(e, node.id)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, node.id)}
+                                onDragEnd={() => {
+                                    setDraggedNodeId(null);
+                                    setDragOverNodeId(null);
+                                    setDropPosition(null);
+                                }}
                                 onClick={(e) => onSelectNode(node.id, e.shiftKey)}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    padding: '8px 16px',
+                                    padding: '7px 12px',
+                                    position: 'relative',
                                     backgroundColor: isSelected ? '#0d99ff' : 'transparent',
                                     color: isSelected ? '#ffffff' : '#cccccc',
-                                    cursor: 'pointer',
-                                    gap: 8,
+                                    cursor: 'grab',
+                                    gap: 6,
+                                    opacity: isDragging ? 0.35 : 1,
                                     transition: 'background-color 0.1s ease',
+                                    borderTop: isOver && dropPosition === 'above' ? '2px solid #0d99ff' : '2px solid transparent',
+                                    borderBottom: isOver && dropPosition === 'below' ? '2px solid #0d99ff' : '2px solid transparent',
                                 }}
                                 onMouseEnter={(e) => {
-                                    if (!isSelected) {
+                                    if (!isSelected && !isDragging) {
                                         (e.currentTarget as HTMLElement).style.backgroundColor = '#2e2e2e';
                                     }
                                 }}
                                 onMouseLeave={(e) => {
-                                    if (!isSelected) {
+                                    if (!isSelected && !isDragging) {
                                         (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                                     }
                                 }}
                             >
+                                {/* Drag Handle */}
+                                <GripVertical
+                                    size={13}
+                                    style={{
+                                        color: isSelected ? 'rgba(255,255,255,0.7)' : '#555555',
+                                        flexShrink: 0,
+                                        cursor: 'grab',
+                                    }}
+                                />
+
                                 {/* Node Type Icon */}
                                 {node.type === 'ellipse' ? (
                                     <Circle
@@ -171,6 +293,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
                                         whiteSpace: 'nowrap',
+                                        fontSize: 12,
                                     }}
                                 >
                                     {layerName}
@@ -187,6 +310,99 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                         flexShrink: 0,
                                     }}
                                 />
+
+                                {/* Layer Reordering Buttons */}
+                                {onBringToFront && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onBringToFront(node.id);
+                                        }}
+                                        title="Bring to Front (Ctrl+])"
+                                        disabled={index === 0}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            cursor: index === 0 ? 'default' : 'pointer',
+                                            padding: 2,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            opacity: index === 0 ? 0.2 : (isSelected ? 1 : 0.6),
+                                        }}
+                                    >
+                                        <ChevronsUp size={13} />
+                                    </button>
+                                )}
+
+                                {onMoveUp && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onMoveUp(node.id);
+                                        }}
+                                        title="Bring Forward (])"
+                                        disabled={index === 0}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            cursor: index === 0 ? 'default' : 'pointer',
+                                            padding: 2,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            opacity: index === 0 ? 0.2 : (isSelected ? 1 : 0.6),
+                                        }}
+                                    >
+                                        <ChevronUp size={13} />
+                                    </button>
+                                )}
+
+                                {onMoveDown && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onMoveDown(node.id);
+                                        }}
+                                        title="Send Backward ([)"
+                                        disabled={index === reversedNodes.length - 1}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            cursor: index === reversedNodes.length - 1 ? 'default' : 'pointer',
+                                            padding: 2,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            opacity: index === reversedNodes.length - 1 ? 0.2 : (isSelected ? 1 : 0.6),
+                                        }}
+                                    >
+                                        <ChevronDown size={13} />
+                                    </button>
+                                )}
+
+                                {onSendToBack && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSendToBack(node.id);
+                                        }}
+                                        title="Send to Back (Ctrl+[)"
+                                        disabled={index === reversedNodes.length - 1}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            cursor: index === reversedNodes.length - 1 ? 'default' : 'pointer',
+                                            padding: 2,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            opacity: index === reversedNodes.length - 1 ? 0.2 : (isSelected ? 1 : 0.6),
+                                        }}
+                                    >
+                                        <ChevronsDown size={13} />
+                                    </button>
+                                )}
 
                                 {/* Delete button */}
                                 <button
@@ -216,4 +432,5 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         </aside>
     );
 };
+
 

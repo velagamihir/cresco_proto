@@ -53,7 +53,7 @@ export const CanvasViewport: React.FC = () => {
         setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
     }, []);
 
-    // Initialize starter shape
+    // Initialize starter shape and subscribe to SceneGraph updates
     useEffect(() => {
         sceneGraphRef.current.addNode({
             id: 'rect-1',
@@ -66,7 +66,17 @@ export const CanvasViewport: React.FC = () => {
             cornerRadius: 8,
         });
         syncNodes();
+
+        // Subscribe to all SceneGraph changes to update React state in real-time (e.g. during drag/resize)
+        const unsubscribe = sceneGraphRef.current.subscribe(() => {
+            syncNodes();
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, [syncNodes]);
+
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -276,10 +286,10 @@ export const CanvasViewport: React.FC = () => {
                 setSelectedIds(new Set());
                 syncNodes();
             }
-            if (e.key === 'l' || e.key === 'L' || e.key === '[') {
+            if (e.key === 'l' || e.key === 'L') {
                 setShowLeftSidebar((prev) => !prev);
             }
-            if (e.key === 'p' || e.key === 'P' || e.key === ']') {
+            if (e.key === 'p' || e.key === 'P') {
                 setShowRightSidebar((prev) => !prev);
             }
             if (e.key === '\\') {
@@ -289,6 +299,27 @@ export const CanvasViewport: React.FC = () => {
                     return next;
                 });
             }
+
+            // Layer reordering shortcuts: [ (Send Backward) and ] (Bring Forward)
+            if (e.key === '[' && selectedIdsRef.current.size === 1) {
+                const targetId = Array.from(selectedIdsRef.current)[0];
+                if (e.metaKey || e.ctrlKey) {
+                    sceneGraphRef.current.sendToBack(targetId);
+                } else {
+                    sceneGraphRef.current.moveDown(targetId);
+                }
+                syncNodes();
+            }
+            if (e.key === ']' && selectedIdsRef.current.size === 1) {
+                const targetId = Array.from(selectedIdsRef.current)[0];
+                if (e.metaKey || e.ctrlKey) {
+                    sceneGraphRef.current.bringToFront(targetId);
+                } else {
+                    sceneGraphRef.current.moveUp(targetId);
+                }
+                syncNodes();
+            }
+
             if ((e.metaKey || e.ctrlKey) && e.key === '0') {
                 e.preventDefault();
                 handleResetZoom();
@@ -353,11 +384,9 @@ export const CanvasViewport: React.FC = () => {
         }
     };
 
-    // Node updates & deletes
-    const selectedNode =
-        selectedIds.size === 1
-            ? sceneGraphRef.current.getNode(Array.from(selectedIds)[0]) || null
-            : null;
+    // Node updates & deletes (derived from nodesList state for real-time reactivity)
+    const selectedId = selectedIds.size === 1 ? Array.from(selectedIds)[0] : null;
+    const selectedNode = selectedId ? nodesList.find((n) => n.id === selectedId) || null : null;
 
     const handleUpdateSelected = (updates: Partial<SceneNode>) => {
         if (!selectedNode) return;
@@ -394,6 +423,26 @@ export const CanvasViewport: React.FC = () => {
                     selectedIds={selectedIds}
                     onSelectNode={handleSelectFromLayer}
                     onDeleteNode={handleDeleteNode}
+                    onReorderNodes={(fromIndex, toIndex) => {
+                        sceneGraphRef.current.reorder(fromIndex, toIndex);
+                        syncNodes();
+                    }}
+                    onMoveUp={(id) => {
+                        sceneGraphRef.current.moveUp(id);
+                        syncNodes();
+                    }}
+                    onMoveDown={(id) => {
+                        sceneGraphRef.current.moveDown(id);
+                        syncNodes();
+                    }}
+                    onBringToFront={(id) => {
+                        sceneGraphRef.current.bringToFront(id);
+                        syncNodes();
+                    }}
+                    onSendToBack={(id) => {
+                        sceneGraphRef.current.sendToBack(id);
+                        syncNodes();
+                    }}
                     onToggleCollapse={() => setShowLeftSidebar(false)}
                 />
             ) : (
@@ -437,6 +486,30 @@ export const CanvasViewport: React.FC = () => {
                     selectedNode={selectedNode}
                     onUpdate={handleUpdateSelected}
                     onDelete={handleDeleteSelected}
+                    onMoveUp={() => {
+                        if (selectedNode) {
+                            sceneGraphRef.current.moveUp(selectedNode.id);
+                            syncNodes();
+                        }
+                    }}
+                    onMoveDown={() => {
+                        if (selectedNode) {
+                            sceneGraphRef.current.moveDown(selectedNode.id);
+                            syncNodes();
+                        }
+                    }}
+                    onBringToFront={() => {
+                        if (selectedNode) {
+                            sceneGraphRef.current.bringToFront(selectedNode.id);
+                            syncNodes();
+                        }
+                    }}
+                    onSendToBack={() => {
+                        if (selectedNode) {
+                            sceneGraphRef.current.sendToBack(selectedNode.id);
+                            syncNodes();
+                        }
+                    }}
                     onToggleCollapse={() => setShowRightSidebar(false)}
                 />
             ) : (

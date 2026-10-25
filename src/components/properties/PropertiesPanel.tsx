@@ -1,11 +1,22 @@
 import React from 'react';
 import type { SceneNode } from '../../types/scene';
-import { Trash2, PanelRightClose } from 'lucide-react';
+import {
+    Trash2,
+    PanelRightClose,
+    ChevronUp,
+    ChevronDown,
+    ChevronsUp,
+    ChevronsDown,
+} from 'lucide-react';
 
 interface PropertiesPanelProps {
     selectedNode: SceneNode | null;
     onUpdate: (updates: Partial<SceneNode>) => void;
     onDelete: () => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    onBringToFront?: () => void;
+    onSendToBack?: () => void;
     onToggleCollapse?: () => void;
 }
 
@@ -13,6 +24,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectedNode,
     onUpdate,
     onDelete,
+    onMoveUp,
+    onMoveDown,
+    onBringToFront,
+    onSendToBack,
     onToggleCollapse,
 }) => {
     if (!selectedNode) {
@@ -99,7 +114,119 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
                     {selectedNode.type}
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {onBringToFront && (
+                        <button
+                            onClick={onBringToFront}
+                            title="Bring to Front (Ctrl+])"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 3,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <ChevronsUp size={14} />
+                        </button>
+                    )}
+
+                    {onMoveUp && (
+                        <button
+                            onClick={onMoveUp}
+                            title="Bring Forward (])"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 3,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <ChevronUp size={14} />
+                        </button>
+                    )}
+
+                    {onMoveDown && (
+                        <button
+                            onClick={onMoveDown}
+                            title="Send Backward ([)"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 3,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <ChevronDown size={14} />
+                        </button>
+                    )}
+
+                    {onSendToBack && (
+                        <button
+                            onClick={onSendToBack}
+                            title="Send to Back (Ctrl+[)"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 3,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <ChevronsDown size={14} />
+                        </button>
+                    )}
+
                     <button
                         onClick={onDelete}
                         title="Delete Shape"
@@ -108,7 +235,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             border: 'none',
                             color: '#ff5c5c',
                             cursor: 'pointer',
-                            padding: 4,
+                            padding: 3,
                             borderRadius: 4,
                             display: 'flex',
                             alignItems: 'center',
@@ -132,7 +259,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 border: 'none',
                                 color: '#888888',
                                 cursor: 'pointer',
-                                padding: 4,
+                                padding: 3,
                                 borderRadius: 4,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -153,6 +280,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     )}
                 </div>
             </div>
+
 
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 
