@@ -56,7 +56,7 @@ export class PenTool {
         if (this.anchors.length >= 2) {
             const first = this.anchors[0];
             const dist = Math.hypot(worldPoint.x - first.x, worldPoint.y - first.y);
-            if (dist <= 10 / zoom) {
+            if (dist <= 16 / zoom || this.hoveringFirstAnchor) {
                 const node = this.finishPath(true);
                 return { status: 'completed', node: node || undefined };
             }
@@ -99,7 +99,7 @@ export class PenTool {
         if (this.anchors.length >= 2) {
             const first = this.anchors[0];
             const dist = Math.hypot(worldPoint.x - first.x, worldPoint.y - first.y);
-            this.hoveringFirstAnchor = dist <= 10 / zoom;
+            this.hoveringFirstAnchor = dist <= 16 / zoom;
         } else {
             this.hoveringFirstAnchor = false;
         }

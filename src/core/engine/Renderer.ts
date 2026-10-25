@@ -235,7 +235,7 @@ export class Renderer {
       }
     }
 
-    if (pathNode.closed && pathNode.anchors.length > 2) {
+    if (pathNode.closed && pathNode.anchors.length >= 2) {
       const last = pathNode.anchors[pathNode.anchors.length - 1];
       const first = pathNode.anchors[0];
       if (last.handleOut || first.handleIn) {
@@ -304,22 +304,26 @@ export class Renderer {
     // 2. Render live preview line from last anchor to mouse cursor
     if (state.currentPointerWorld && !state.isDraggingHandle) {
       const last = state.anchors[state.anchors.length - 1];
+      const target = (state.hoveringFirstAnchor && state.anchors.length >= 2)
+        ? state.anchors[0]
+        : state.currentPointerWorld;
+
       ctx.beginPath();
       ctx.setLineDash([4 / zoom, 4 / zoom]);
       ctx.strokeStyle = '#0d99ff';
-      ctx.lineWidth = 1 / zoom;
+      ctx.lineWidth = 1.5 / zoom;
       ctx.moveTo(last.x, last.y);
       if (last.handleOut) {
         ctx.bezierCurveTo(
           last.handleOut.x,
           last.handleOut.y,
-          state.currentPointerWorld.x,
-          state.currentPointerWorld.y,
-          state.currentPointerWorld.x,
-          state.currentPointerWorld.y
+          target.x,
+          target.y,
+          target.x,
+          target.y
         );
       } else {
-        ctx.lineTo(state.currentPointerWorld.x, state.currentPointerWorld.y);
+        ctx.lineTo(target.x, target.y);
       }
       ctx.stroke();
       ctx.setLineDash([]);
@@ -383,9 +387,11 @@ export class Renderer {
     if (state.hoveringFirstAnchor && state.anchors.length >= 2) {
       const first = state.anchors[0];
       ctx.beginPath();
+      ctx.fillStyle = 'rgba(13, 153, 255, 0.25)';
       ctx.strokeStyle = '#0d99ff';
       ctx.lineWidth = 2 / zoom;
-      ctx.arc(first.x, first.y, 8 / zoom, 0, Math.PI * 2);
+      ctx.arc(first.x, first.y, 9 / zoom, 0, Math.PI * 2);
+      ctx.fill();
       ctx.stroke();
     }
 

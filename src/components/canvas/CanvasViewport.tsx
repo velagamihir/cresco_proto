@@ -74,7 +74,7 @@ export const CanvasViewport: React.FC = () => {
             if (penToolRef.current.getIsDrawing()) {
                 const node = penToolRef.current.finishPath(false);
                 if (node) {
-                    historyRef.current.push(
+                    historyRef.current.execute(
                         new CreateNodeCommand(
                             sceneGraphRef.current,
                             { ...node },
@@ -314,7 +314,7 @@ export const CanvasViewport: React.FC = () => {
                 } else if (activeToolRef.current === 'pen') {
                     const result = penToolRef.current.onPointerDown(worldPoint, currentZoom);
                     if (result.status === 'completed' && result.node) {
-                        historyRef.current.push(
+                        historyRef.current.execute(
                             new CreateNodeCommand(
                                 sceneGraphRef.current,
                                 { ...result.node },
@@ -322,7 +322,7 @@ export const CanvasViewport: React.FC = () => {
                             )
                         );
                         setSelectedIds(new Set([result.node.id]));
-                        setActiveTool('select');
+                        handleSelectTool('select');
                     }
                     syncNodes();
                 }
@@ -474,7 +474,7 @@ export const CanvasViewport: React.FC = () => {
                 e.preventDefault();
                 const node = penToolRef.current.finishPath(false);
                 if (node) {
-                    historyRef.current.push(
+                    historyRef.current.execute(
                         new CreateNodeCommand(
                             sceneGraphRef.current,
                             { ...node },
@@ -483,7 +483,7 @@ export const CanvasViewport: React.FC = () => {
                     );
                     setSelectedIds(new Set([node.id]));
                 }
-                setActiveTool('select');
+                handleSelectTool('select');
                 syncNodes();
                 return;
             }
@@ -492,7 +492,7 @@ export const CanvasViewport: React.FC = () => {
                 e.preventDefault();
                 const node = penToolRef.current.finishPath(false);
                 if (node) {
-                    historyRef.current.push(
+                    historyRef.current.execute(
                         new CreateNodeCommand(
                             sceneGraphRef.current,
                             { ...node },
@@ -503,7 +503,7 @@ export const CanvasViewport: React.FC = () => {
                 } else {
                     penToolRef.current.cancel();
                 }
-                setActiveTool('select');
+                handleSelectTool('select');
                 syncNodes();
                 return;
             }
@@ -657,7 +657,7 @@ export const CanvasViewport: React.FC = () => {
             if (activeToolRef.current === 'pen' && penToolRef.current.getIsDrawing()) {
                 const node = penToolRef.current.finishPath(false);
                 if (node) {
-                    historyRef.current.push(
+                    historyRef.current.execute(
                         new CreateNodeCommand(
                             sceneGraphRef.current,
                             { ...node },
@@ -666,7 +666,7 @@ export const CanvasViewport: React.FC = () => {
                     );
                     setSelectedIds(new Set([node.id]));
                 }
-                setActiveTool('select');
+                handleSelectTool('select');
                 syncNodes();
                 return;
             }
