@@ -5,11 +5,12 @@ import { SceneGraph } from '../../core/scene/SceneGraph';
 import { Renderer } from '../../core/engine/Renderer';
 import { SelectTool } from '../../core/tools/SelectTool';
 import { RectTool } from '../../core/tools/RectTool';
+import { EllipseTool } from '../../core/tools/EllipseTool';
 import { Toolbar } from '../toolbar/Toolbar';
 import { PropertiesPanel } from '../properties/PropertiesPanel';
 import { LayersPanel } from '../layers/LayersPanel';
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
-import type { RectangleNode, SceneNode } from '../../types/scene';
+import type { SceneNode } from '../../types/scene';
 import type { ToolType } from '../toolbar/Toolbar';
 
 export const CanvasViewport: React.FC = () => {
@@ -18,6 +19,7 @@ export const CanvasViewport: React.FC = () => {
     const sceneGraphRef = useRef<SceneGraph>(new SceneGraph());
     const selectToolRef = useRef<SelectTool>(new SelectTool());
     const rectToolRef = useRef<RectTool>(new RectTool());
+    const ellipseToolRef = useRef<EllipseTool>(new EllipseTool());
 
     const [activeTool, setActiveTool] = useState<ToolType>('select');
     const activeToolRef = useRef<ToolType>('select');
@@ -126,7 +128,7 @@ export const CanvasViewport: React.FC = () => {
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
             if (handle === 't' || handle === 'b') return 'ns-resize';
             if (handle === 'l' || handle === 'r') return 'ew-resize';
-            if (activeToolRef.current === 'rectangle') return 'crosshair';
+            if (activeToolRef.current === 'rectangle' || activeToolRef.current === 'ellipse') return 'crosshair';
             if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
             return 'default';
         };
@@ -167,6 +169,11 @@ export const CanvasViewport: React.FC = () => {
                         setSelectedIds(new Set([id]));
                         syncNodes();
                     });
+                } else if (activeToolRef.current === 'ellipse') {
+                    ellipseToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
+                        setSelectedIds(new Set([id]));
+                        syncNodes();
+                    });
                 }
             }
         };
@@ -198,6 +205,8 @@ export const CanvasViewport: React.FC = () => {
                 }
             } else if (activeToolRef.current === 'rectangle') {
                 rectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
+            } else if (activeToolRef.current === 'ellipse') {
+                ellipseToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, e.shiftKey);
             }
         };
 
@@ -214,6 +223,16 @@ export const CanvasViewport: React.FC = () => {
                 syncNodes();
             } else if (activeToolRef.current === 'rectangle') {
                 rectToolRef.current.onPointerUp(sceneGraphRef.current, (completedId) => {
+                    if (completedId) {
+                        setSelectedIds(new Set([completedId]));
+                    } else {
+                        setSelectedIds(new Set());
+                    }
+                    setActiveTool('select');
+                    syncNodes();
+                });
+            } else if (activeToolRef.current === 'ellipse') {
+                ellipseToolRef.current.onPointerUp(sceneGraphRef.current, (completedId) => {
                     if (completedId) {
                         setSelectedIds(new Set([completedId]));
                     } else {
@@ -246,6 +265,10 @@ export const CanvasViewport: React.FC = () => {
             if (e.key === 'r' || e.key === 'R') {
                 setActiveTool('rectangle');
             }
+            if (e.key === 'o' || e.key === 'O') {
+                setActiveTool('ellipse');
+            }
+
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 for (const id of selectedIdsRef.current) {
                     sceneGraphRef.current.deleteNode(id);
@@ -308,7 +331,7 @@ export const CanvasViewport: React.FC = () => {
     // Update cursor dynamically based on active tool
     useEffect(() => {
         if (canvasRef.current && !isSpacePressedRef.current) {
-            if (activeTool === 'rectangle') {
+            if (activeTool === 'rectangle' || activeTool === 'ellipse') {
                 canvasRef.current.style.cursor = 'crosshair';
             } else if (activeTool === 'hand') {
                 canvasRef.current.style.cursor = 'grab';
@@ -333,10 +356,10 @@ export const CanvasViewport: React.FC = () => {
     // Node updates & deletes
     const selectedNode =
         selectedIds.size === 1
-            ? (sceneGraphRef.current.getNode(Array.from(selectedIds)[0]) as RectangleNode) || null
+            ? sceneGraphRef.current.getNode(Array.from(selectedIds)[0]) || null
             : null;
 
-    const handleUpdateSelected = (updates: Partial<RectangleNode>) => {
+    const handleUpdateSelected = (updates: Partial<SceneNode>) => {
         if (!selectedNode) return;
         sceneGraphRef.current.updateNode(selectedNode.id, updates);
         setSelectedIds(new Set(selectedIds));

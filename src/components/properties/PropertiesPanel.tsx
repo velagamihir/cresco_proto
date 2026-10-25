@@ -1,10 +1,10 @@
 import React from 'react';
-import type { RectangleNode } from '../../types/scene';
+import type { SceneNode } from '../../types/scene';
 import { Trash2, PanelRightClose } from 'lucide-react';
 
 interface PropertiesPanelProps {
-    selectedNode: RectangleNode | null;
-    onUpdate: (updates: Partial<RectangleNode>) => void;
+    selectedNode: SceneNode | null;
+    onUpdate: (updates: Partial<SceneNode>) => void;
     onDelete: () => void;
     onToggleCollapse?: () => void;
 }
@@ -199,19 +199,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
             </div>
 
-            {/* Corner Radius */}
-            <div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#aaaaaa' }}>Corner Radius</span>
-                    <input
-                        type="number"
-                        min={0}
-                        value={selectedNode.cornerRadius || 0}
-                        onChange={(e) => onUpdate({ cornerRadius: Math.max(0, Number(e.target.value)) })}
-                        style={{ width: 60, background: '#1e1e1e', border: '1px solid #333', color: '#fff', padding: '4px 6px', borderRadius: 4, outline: 'none' }}
-                    />
-                </label>
-            </div>
+            {/* Corner Radius (Only applicable for rectangles) */}
+            {selectedNode.type === 'rectangle' && (
+                <div>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: '#aaaaaa' }}>Corner Radius</span>
+                        <input
+                            type="number"
+                            min={0}
+                            value={selectedNode.cornerRadius || 0}
+                            onChange={(e) => onUpdate({ cornerRadius: Math.max(0, Number(e.target.value)) })}
+                            style={{ width: 60, background: '#1e1e1e', border: '1px solid #333', color: '#fff', padding: '4px 6px', borderRadius: 4, outline: 'none' }}
+                        />
+                    </label>
+                </div>
+            )}
+
 
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 

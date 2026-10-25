@@ -1,7 +1,7 @@
 import type { Point } from '../../types/camera';
 import { SceneGraph } from '../scene/SceneGraph';
 import {
-  isPointInsideBounds,
+  isPointInsideNode,
   hitTestResizeHandles,
 } from '../../utils/math';
 import type { ResizeHandleType } from '../../utils/math';
@@ -91,7 +91,7 @@ export class SelectTool {
 
     for (let i = nodes.length - 1; i >= 0; i--) {
       const node = nodes[i];
-      if (isPointInsideBounds(worldPoint, node)) {
+      if (isPointInsideNode(worldPoint, node)) {
         hitId = node.id;
         break;
       }

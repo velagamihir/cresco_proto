@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SceneNode } from '../../types/scene';
-import { Square, Trash2, Layers, PanelLeftClose } from 'lucide-react';
+import { Square, Circle, Trash2, Layers, PanelLeftClose } from 'lucide-react';
 
 interface LayersPanelProps {
     nodes: SceneNode[];
@@ -111,13 +111,14 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                     >
                         No layers created yet.
                         <br />
-                        Press <strong style={{ color: '#aaa' }}>R</strong> to draw one.
+                        Press <strong style={{ color: '#aaa' }}>R</strong> or <strong style={{ color: '#aaa' }}>O</strong> to draw.
                     </div>
                 ) : (
                     reversedNodes.map((node, index) => {
                         const isSelected = selectedIds.has(node.id);
                         // Default friendly name based on node type
-                        const layerName = `Rectangle ${nodes.length - index}`;
+                        const typeName = node.type === 'ellipse' ? 'Ellipse' : 'Rectangle';
+                        const layerName = `${typeName} ${nodes.length - index}`;
 
                         return (
                             <div
@@ -145,13 +146,23 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                 }}
                             >
                                 {/* Node Type Icon */}
-                                <Square
-                                    size={14}
-                                    style={{
-                                        color: isSelected ? '#ffffff' : '#888888',
-                                        flexShrink: 0,
-                                    }}
-                                />
+                                {node.type === 'ellipse' ? (
+                                    <Circle
+                                        size={14}
+                                        style={{
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                ) : (
+                                    <Square
+                                        size={14}
+                                        style={{
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                )}
 
                                 {/* Layer Name */}
                                 <span

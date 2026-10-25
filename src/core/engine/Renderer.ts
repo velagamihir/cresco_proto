@@ -1,4 +1,4 @@
-import type { SceneNode, RectangleNode } from '../../types/scene';
+import type { SceneNode, RectangleNode, EllipseNode } from '../../types/scene';
 import { getResizeHandles } from '../../utils/math';
 
 export class Renderer {
@@ -13,6 +13,9 @@ export class Renderer {
       switch (node.type) {
         case 'rectangle':
           this.renderRectangle(ctx, node);
+          break;
+        case 'ellipse':
+          this.renderEllipse(ctx, node);
           break;
       }
     }
@@ -48,6 +51,33 @@ export class Renderer {
         ctx.lineWidth = rect.strokeWidth;
         ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
       }
+    }
+
+    ctx.restore();
+  }
+
+  private static renderEllipse(
+    ctx: CanvasRenderingContext2D,
+    ellipse: EllipseNode
+  ): void {
+    const rx = Math.max(0, ellipse.width / 2);
+    const ry = Math.max(0, ellipse.height / 2);
+    if (rx === 0 || ry === 0) return;
+
+    const cx = ellipse.x + rx;
+    const cy = ellipse.y + ry;
+
+    ctx.save();
+    ctx.fillStyle = ellipse.fill;
+
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (ellipse.stroke && ellipse.strokeWidth) {
+      ctx.strokeStyle = ellipse.stroke;
+      ctx.lineWidth = ellipse.strokeWidth;
+      ctx.stroke();
     }
 
     ctx.restore();

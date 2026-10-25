@@ -61,7 +61,43 @@ export function isPointInsideBounds(
         point.y <= bounds.y + bounds.height
     );
 }
+
+/**
+ * Checks if a point in 2D space falls inside an ellipse.
+ * Uses normalized algebraic ellipse formula: ((x - cx) / rx)^2 + ((y - cy) / ry)^2 <= 1
+ */
+export function isPointInsideEllipse(
+    point: Point,
+    ellipse: { x: number; y: number; width: number; height: number }
+): boolean {
+    const rx = ellipse.width / 2;
+    const ry = ellipse.height / 2;
+    if (rx <= 0 || ry <= 0) return false;
+
+    const cx = ellipse.x + rx;
+    const cy = ellipse.y + ry;
+
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+
+    return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1;
+}
+
+/**
+ * Checks if a point in 2D space falls inside a SceneNode based on its specific geometry.
+ */
+export function isPointInsideNode(
+    point: Point,
+    node: { type: string; x: number; y: number; width: number; height: number }
+): boolean {
+    if (node.type === 'ellipse') {
+        return isPointInsideEllipse(point, node);
+    }
+    return isPointInsideBounds(point, node);
+}
+
 export type ResizeHandleType = 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r';
+
 
 export interface HandleDescriptor {
     type: ResizeHandleType;

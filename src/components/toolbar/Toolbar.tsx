@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { MousePointer2, Hand, MessageCircle, Square } from 'lucide-react';
+import { MousePointer2, Hand, MessageCircle, Square, Circle } from 'lucide-react';
 
-export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle';
+export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse';
 
 interface ToolbarProps {
     activeTool: ToolType;
@@ -39,6 +39,12 @@ const TOOLS: ToolItem[] = [
         label: 'Rectangle',
         shortcut: 'R',
         icon: <Square size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'ellipse',
+        label: 'Ellipse',
+        shortcut: 'O',
+        icon: <Circle size={15} strokeWidth={1.8} />,
     },
 ];
 
