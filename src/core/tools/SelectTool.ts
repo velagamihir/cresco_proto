@@ -5,6 +5,7 @@ import {
   hitTestResizeHandles,
 } from '../../utils/math';
 import type { ResizeHandleType } from '../../utils/math';
+import type { SnapGuide } from '../engine/Renderer';
 interface DragState {
   mode: 'move' | 'resize';
   resizeHandle?: ResizeHandleType;
@@ -18,6 +19,11 @@ interface DragState {
 export class SelectTool {
   private dragState: DragState | null = null;
   private hoveredHandle: ResizeHandleType | null = null;
+  private activeSnapGuides: SnapGuide[] = [];
+
+  public getSnapGuides(): SnapGuide[] {
+    return this.activeSnapGuides;
+  }
 
   public getHoveredHandle(): ResizeHandleType | null {
     return this.hoveredHandle;
@@ -135,19 +141,160 @@ export class SelectTool {
   }
 
   /**
-   * Pointer Move: Execute move or resize computation.
+   * Pointer Move: Execute move or resize computation with snap-to-parent.
    */
-  public onPointerMove(worldPoint: Point, sceneGraph: SceneGraph): void {
+  public onPointerMove(worldPoint: Point, sceneGraph: SceneGraph, zoom: number = 1): void {
     if (!this.dragState) return;
 
     const deltaX = worldPoint.x - this.dragState.dragStartWorld.x;
     const deltaY = worldPoint.y - this.dragState.dragStartWorld.y;
 
     if (this.dragState.mode === 'move') {
+      // Calculate combined bounding box of moving selection
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      for (const initial of this.dragState.initialNodeBounds.values()) {
+        const curX = initial.x + deltaX;
+        const curY = initial.y + deltaY;
+        minX = Math.min(minX, curX);
+        minY = Math.min(minY, curY);
+        maxX = Math.max(maxX, curX + initial.width);
+        maxY = Math.max(maxY, curY + initial.height);
+      }
+
+      const selectedBounds = {
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY),
+      };
+
+      // Find parent element candidates among other nodes
+      const otherNodes = sceneGraph
+        .getAllNodes()
+        .filter((n) => !this.dragState?.initialNodeBounds.has(n.id));
+
+      const selectedCenterX = selectedBounds.x + selectedBounds.width / 2;
+      const selectedCenterY = selectedBounds.y + selectedBounds.height / 2;
+
+      // 1. Shapes that enclose the selection or its center
+      const enclosing = otherNodes.filter(
+        (n) =>
+          n.x <= selectedCenterX &&
+          selectedCenterX <= n.x + n.width &&
+          n.y <= selectedCenterY &&
+          selectedCenterY <= n.y + n.height
+      );
+
+      // Sort by area ascending so the most immediate containing parent is prioritized
+      enclosing.sort((a, b) => a.width * a.height - b.width * b.height);
+
+      let parent = enclosing[0];
+      if (!parent && otherNodes.length > 0) {
+        // Fallback: pick any larger intersecting or adjacent node
+        const larger = otherNodes.filter(
+          (n) => n.width * n.height >= selectedBounds.width * selectedBounds.height
+        );
+        larger.sort((a, b) => a.width * a.height - b.width * b.height);
+        parent = larger[0] || otherNodes[0];
+      }
+
+      let snapOffsetX = 0;
+      let snapOffsetY = 0;
+      this.activeSnapGuides = [];
+
+      if (parent) {
+        const snapThreshold = 6 / zoom; // 6 screen pixels converted to world space
+
+        // X Targets on parent: Left, Center, Right
+        const parentXTargets = [
+          { pos: parent.x },
+          { pos: parent.x + parent.width / 2 },
+          { pos: parent.x + parent.width },
+        ];
+
+        // Element X Points: Left, Center, Right
+        const elemXPoints = [
+          selectedBounds.x,
+          selectedBounds.x + selectedBounds.width / 2,
+          selectedBounds.x + selectedBounds.width,
+        ];
+
+        let bestDiffX = snapThreshold + 1;
+        let bestTargetX: number | null = null;
+        let bestSnapX = 0;
+
+        for (const target of parentXTargets) {
+          for (const point of elemXPoints) {
+            const diff = Math.abs(point - target.pos);
+            if (diff <= snapThreshold && diff < bestDiffX) {
+              bestDiffX = diff;
+              bestTargetX = target.pos;
+              bestSnapX = target.pos - point;
+            }
+          }
+        }
+
+        if (bestTargetX !== null) {
+          snapOffsetX = bestSnapX;
+          this.activeSnapGuides.push({
+            orientation: 'vertical',
+            position: bestTargetX,
+            start: Math.min(parent.y, selectedBounds.y) - 20,
+            end: Math.max(parent.y + parent.height, selectedBounds.y + selectedBounds.height) + 20,
+          });
+        }
+
+        // Y Targets on parent: Top, Center, Bottom
+        const parentYTargets = [
+          { pos: parent.y },
+          { pos: parent.y + parent.height / 2 },
+          { pos: parent.y + parent.height },
+        ];
+
+        // Element Y Points: Top, Center, Bottom
+        const elemYPoints = [
+          selectedBounds.y,
+          selectedBounds.y + selectedBounds.height / 2,
+          selectedBounds.y + selectedBounds.height,
+        ];
+
+        let bestDiffY = snapThreshold + 1;
+        let bestTargetY: number | null = null;
+        let bestSnapY = 0;
+
+        for (const target of parentYTargets) {
+          for (const point of elemYPoints) {
+            const diff = Math.abs(point - target.pos);
+            if (diff <= snapThreshold && diff < bestDiffY) {
+              bestDiffY = diff;
+              bestTargetY = target.pos;
+              bestSnapY = target.pos - point;
+            }
+          }
+        }
+
+        if (bestTargetY !== null) {
+          snapOffsetY = bestSnapY;
+          this.activeSnapGuides.push({
+            orientation: 'horizontal',
+            position: bestTargetY,
+            start: Math.min(parent.x, selectedBounds.x) - 20,
+            end: Math.max(parent.x + parent.width, selectedBounds.x + selectedBounds.width) + 20,
+          });
+        }
+      }
+
+      const finalDeltaX = deltaX + snapOffsetX;
+      const finalDeltaY = deltaY + snapOffsetY;
+
       for (const [id, initial] of this.dragState.initialNodeBounds.entries()) {
         sceneGraph.updateNode(id, {
-          x: initial.x + deltaX,
-          y: initial.y + deltaY,
+          x: initial.x + finalDeltaX,
+          y: initial.y + finalDeltaY,
         });
       }
     } else if (this.dragState.mode === 'resize' && this.dragState.resizeHandle) {
@@ -291,6 +438,7 @@ export class SelectTool {
     }
 
     this.dragState = null;
+    this.activeSnapGuides = [];
     return changes;
   }
 }

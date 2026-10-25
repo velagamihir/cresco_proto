@@ -211,7 +211,8 @@ export const CanvasViewport: React.FC = () => {
                 sceneGraphRef.current.getAllNodes(),
                 selectedIdsRef.current,
                 cameraRef.current.getState().zoom,
-                editingTextIdRef.current
+                editingTextIdRef.current,
+                selectToolRef.current.getSnapGuides()
             );
             ctx.restore();
 
@@ -301,7 +302,7 @@ export const CanvasViewport: React.FC = () => {
             }
 
             if (activeToolRef.current === 'select') {
-                selectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
+                selectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, currentZoom);
                 if (!isSpacePressedRef.current) {
                     const hoveredHandle = selectToolRef.current.onPointerHover(
                         worldPoint,
@@ -443,6 +444,52 @@ export const CanvasViewport: React.FC = () => {
             if (e.key === 'Delete') {
                 e.preventDefault();
                 handleDeleteSelected();
+            }
+
+            // Arrow key nudging for selected elements:
+            // Shift + Arrow = move slowly (1px)
+            // Regular Arrow = normal move (10px)
+            if (
+                selectedIdsRef.current.size > 0 &&
+                ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+            ) {
+                e.preventDefault();
+                const step = e.shiftKey ? 1 : 10;
+                let dx = 0;
+                let dy = 0;
+
+                if (e.key === 'ArrowUp') dy = -step;
+                if (e.key === 'ArrowDown') dy = step;
+                if (e.key === 'ArrowLeft') dx = -step;
+                if (e.key === 'ArrowRight') dx = step;
+
+                const changes: {
+                    id: string;
+                    before: { x: number; y: number; width: number; height: number };
+                    after: { x: number; y: number; width: number; height: number };
+                }[] = [];
+
+                selectedIdsRef.current.forEach((id) => {
+                    const node = sceneGraphRef.current.getNode(id);
+                    if (node) {
+                        const before = { x: node.x, y: node.y, width: node.width, height: node.height };
+                        const after = { ...before, x: node.x + dx, y: node.y + dy };
+                        sceneGraphRef.current.updateNode(id, { x: after.x, y: after.y });
+                        changes.push({ id, before, after });
+                    }
+                });
+
+                if (changes.length > 0) {
+                    historyRef.current.push(
+                        new TransformNodeCommand(
+                            sceneGraphRef.current,
+                            changes,
+                            (ids) => setSelectedIds(ids)
+                        )
+                    );
+                }
+                syncNodes();
+                return;
             }
 
             if (e.key === 'l' || e.key === 'L') {

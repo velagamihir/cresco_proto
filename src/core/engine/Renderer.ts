@@ -2,13 +2,21 @@ import type { SceneNode, RectangleNode, EllipseNode, TextNode } from '../../type
 import { getResizeHandles } from '../../utils/math';
 import { getFontString, measureTextLines } from '../../utils/text';
 
+export interface SnapGuide {
+  orientation: 'vertical' | 'horizontal';
+  position: number;
+  start: number;
+  end: number;
+}
+
 export class Renderer {
   public static renderScene(
     ctx: CanvasRenderingContext2D,
     nodes: SceneNode[],
     selectedIds: Set<string>,
     zoom: number,
-    editingNodeId?: string | null
+    editingNodeId?: string | null,
+    snapGuides?: SnapGuide[]
   ): void {
     // 1. Render Shapes
     for (const node of nodes) {
@@ -33,6 +41,27 @@ export class Renderer {
       if (selectedIds.has(node.id)) {
         this.renderSelectionOutline(ctx, node, zoom);
       }
+    }
+
+    // 3. Render Snap Guides (Figma smart guides in magenta)
+    if (snapGuides && snapGuides.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#ea3671'; // Figma magenta smart guide color
+      ctx.lineWidth = 1 / zoom;
+
+      for (const guide of snapGuides) {
+        ctx.beginPath();
+        if (guide.orientation === 'vertical') {
+          ctx.moveTo(guide.position, guide.start);
+          ctx.lineTo(guide.position, guide.end);
+        } else {
+          ctx.moveTo(guide.start, guide.position);
+          ctx.lineTo(guide.end, guide.position);
+        }
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
   }
 
