@@ -1,4 +1,5 @@
 import type { Point } from '../../types/camera';
+import type { PathNode, VectorAnchor } from '../../types/scene';
 import { SceneGraph } from '../scene/SceneGraph';
 import {
   isPointInsideNode,
@@ -6,13 +7,14 @@ import {
 } from '../../utils/math';
 import type { ResizeHandleType } from '../../utils/math';
 import type { SnapGuide } from '../engine/Renderer';
+
 interface DragState {
   mode: 'move' | 'resize';
   resizeHandle?: ResizeHandleType;
   dragStartWorld: Point;
   initialNodeBounds: Map<
     string,
-    { x: number; y: number; width: number; height: number }
+    { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] }
   >;
 }
 
@@ -82,6 +84,7 @@ export class SelectTool {
             y: node.y,
             width: node.width,
             height: node.height,
+            anchors: node.type === 'path' ? JSON.parse(JSON.stringify((node as PathNode).anchors)) : undefined,
           });
 
           this.dragState = {
@@ -524,6 +527,22 @@ export class SelectTool {
           height: newHeight,
           autoWidth: false,
         });
+      } else if (node && node.type === 'path' && initial.anchors && initial.width > 0 && initial.height > 0) {
+        const sx = newWidth / initial.width;
+        const sy = newHeight / initial.height;
+        const scaledAnchors: VectorAnchor[] = initial.anchors.map((a) => ({
+          x: a.x * sx,
+          y: a.y * sy,
+          handleIn: a.handleIn ? { x: a.handleIn.x * sx, y: a.handleIn.y * sy } : undefined,
+          handleOut: a.handleOut ? { x: a.handleOut.x * sx, y: a.handleOut.y * sy } : undefined,
+        }));
+        sceneGraph.updateNode(id, {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+          anchors: scaledAnchors,
+        });
       } else {
         sceneGraph.updateNode(id, {
           x: newX,
@@ -540,13 +559,13 @@ export class SelectTool {
    */
   public onPointerUp(sceneGraph?: SceneGraph): {
     id: string;
-    before: { x: number; y: number; width: number; height: number };
-    after: { x: number; y: number; width: number; height: number };
+    before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
+    after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
   }[] {
     const changes: {
       id: string;
-      before: { x: number; y: number; width: number; height: number };
-      after: { x: number; y: number; width: number; height: number };
+      before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
+      after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
     }[] = [];
 
     if (this.dragState && sceneGraph) {
@@ -568,6 +587,7 @@ export class SelectTool {
                 y: current.y,
                 width: current.width,
                 height: current.height,
+                anchors: current.type === 'path' ? (current as PathNode).anchors : undefined,
               },
             });
           }

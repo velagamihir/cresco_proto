@@ -1,4 +1,5 @@
-import type { SceneNode, RectangleNode, EllipseNode, TextNode } from '../../types/scene';
+import type { SceneNode, RectangleNode, EllipseNode, TextNode, PathNode } from '../../types/scene';
+import type { PenDrawingState } from '../tools/PenTool';
 import { getResizeHandles } from '../../utils/math';
 import { getFontString, measureTextLines } from '../../utils/text';
 
@@ -32,6 +33,9 @@ export class Renderer {
           if (node.id !== editingNodeId) {
             this.renderText(ctx, node);
           }
+          break;
+        case 'path':
+          this.renderPath(ctx, node);
           break;
       }
     }
@@ -199,6 +203,190 @@ export class Renderer {
         handleSize,
         handleSize
       );
+    }
+
+    ctx.restore();
+  }
+
+  private static renderPath(
+    ctx: CanvasRenderingContext2D,
+    pathNode: PathNode
+  ): void {
+    if (!pathNode.anchors || pathNode.anchors.length === 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+
+    const start = pathNode.anchors[0];
+    ctx.moveTo(pathNode.x + start.x, pathNode.y + start.y);
+
+    for (let i = 1; i < pathNode.anchors.length; i++) {
+      const prev = pathNode.anchors[i - 1];
+      const curr = pathNode.anchors[i];
+
+      if (prev.handleOut || curr.handleIn) {
+        const cp1x = prev.handleOut ? pathNode.x + prev.handleOut.x : pathNode.x + prev.x;
+        const cp1y = prev.handleOut ? pathNode.y + prev.handleOut.y : pathNode.y + prev.y;
+        const cp2x = curr.handleIn ? pathNode.x + curr.handleIn.x : pathNode.x + curr.x;
+        const cp2y = curr.handleIn ? pathNode.y + curr.handleIn.y : pathNode.y + curr.y;
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pathNode.x + curr.x, pathNode.y + curr.y);
+      } else {
+        ctx.lineTo(pathNode.x + curr.x, pathNode.y + curr.y);
+      }
+    }
+
+    if (pathNode.closed && pathNode.anchors.length > 2) {
+      const last = pathNode.anchors[pathNode.anchors.length - 1];
+      const first = pathNode.anchors[0];
+      if (last.handleOut || first.handleIn) {
+        const cp1x = last.handleOut ? pathNode.x + last.handleOut.x : pathNode.x + last.x;
+        const cp1y = last.handleOut ? pathNode.y + last.handleOut.y : pathNode.y + last.y;
+        const cp2x = first.handleIn ? pathNode.x + first.handleIn.x : pathNode.x + first.x;
+        const cp2y = first.handleIn ? pathNode.y + first.handleIn.y : pathNode.y + first.y;
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pathNode.x + first.x, pathNode.y + first.y);
+      } else {
+        ctx.lineTo(pathNode.x + first.x, pathNode.y + first.y);
+      }
+      ctx.closePath();
+
+      if (pathNode.fill && pathNode.fill !== 'transparent') {
+        ctx.fillStyle = pathNode.fill;
+        ctx.fill();
+      }
+    }
+
+    if (pathNode.stroke && pathNode.strokeWidth && pathNode.strokeWidth > 0) {
+      ctx.strokeStyle = pathNode.stroke;
+      ctx.lineWidth = pathNode.strokeWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  public static renderPenPreview(
+    ctx: CanvasRenderingContext2D,
+    state: PenDrawingState,
+    zoom: number
+  ): void {
+    if (!state.isDrawing || state.anchors.length === 0) return;
+
+    ctx.save();
+
+    // 1. Render placed curve segments
+    ctx.beginPath();
+    ctx.strokeStyle = '#0d99ff';
+    ctx.lineWidth = 1.5 / zoom;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const start = state.anchors[0];
+    ctx.moveTo(start.x, start.y);
+
+    for (let i = 1; i < state.anchors.length; i++) {
+      const prev = state.anchors[i - 1];
+      const curr = state.anchors[i];
+
+      if (prev.handleOut || curr.handleIn) {
+        const cp1x = prev.handleOut ? prev.handleOut.x : prev.x;
+        const cp1y = prev.handleOut ? prev.handleOut.y : prev.y;
+        const cp2x = curr.handleIn ? curr.handleIn.x : curr.x;
+        const cp2y = curr.handleIn ? curr.handleIn.y : curr.y;
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, curr.x, curr.y);
+      } else {
+        ctx.lineTo(curr.x, curr.y);
+      }
+    }
+    ctx.stroke();
+
+    // 2. Render live preview line from last anchor to mouse cursor
+    if (state.currentPointerWorld && !state.isDraggingHandle) {
+      const last = state.anchors[state.anchors.length - 1];
+      ctx.beginPath();
+      ctx.setLineDash([4 / zoom, 4 / zoom]);
+      ctx.strokeStyle = '#0d99ff';
+      ctx.lineWidth = 1 / zoom;
+      ctx.moveTo(last.x, last.y);
+      if (last.handleOut) {
+        ctx.bezierCurveTo(
+          last.handleOut.x,
+          last.handleOut.y,
+          state.currentPointerWorld.x,
+          state.currentPointerWorld.y,
+          state.currentPointerWorld.x,
+          state.currentPointerWorld.y
+        );
+      } else {
+        ctx.lineTo(state.currentPointerWorld.x, state.currentPointerWorld.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 3. Render tangent handles for anchors that have handles
+    for (const anchor of state.anchors) {
+      if (anchor.handleIn || anchor.handleOut) {
+        ctx.strokeStyle = 'rgba(13, 153, 255, 0.6)';
+        ctx.lineWidth = 1 / zoom;
+
+        if (anchor.handleIn) {
+          ctx.beginPath();
+          ctx.moveTo(anchor.x, anchor.y);
+          ctx.lineTo(anchor.handleIn.x, anchor.handleIn.y);
+          ctx.stroke();
+
+          // Handle knob
+          ctx.beginPath();
+          ctx.arc(anchor.handleIn.x, anchor.handleIn.y, 3 / zoom, 0, Math.PI * 2);
+          ctx.fillStyle = '#0d99ff';
+          ctx.fill();
+        }
+
+        if (anchor.handleOut) {
+          ctx.beginPath();
+          ctx.moveTo(anchor.x, anchor.y);
+          ctx.lineTo(anchor.handleOut.x, anchor.handleOut.y);
+          ctx.stroke();
+
+          // Handle knob
+          ctx.beginPath();
+          ctx.arc(anchor.handleOut.x, anchor.handleOut.y, 3 / zoom, 0, Math.PI * 2);
+          ctx.fillStyle = '#0d99ff';
+          ctx.fill();
+        }
+      }
+    }
+
+    // 4. Render anchor point squares (white fill, blue border)
+    const anchorSize = 6 / zoom;
+    for (const anchor of state.anchors) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0d99ff';
+      ctx.lineWidth = 1.5 / zoom;
+      ctx.fillRect(
+        anchor.x - anchorSize / 2,
+        anchor.y - anchorSize / 2,
+        anchorSize,
+        anchorSize
+      );
+      ctx.strokeRect(
+        anchor.x - anchorSize / 2,
+        anchor.y - anchorSize / 2,
+        anchorSize,
+        anchorSize
+      );
+    }
+
+    // 5. Closing indicator when hovering first anchor
+    if (state.hoveringFirstAnchor && state.anchors.length >= 2) {
+      const first = state.anchors[0];
+      ctx.beginPath();
+      ctx.strokeStyle = '#0d99ff';
+      ctx.lineWidth = 2 / zoom;
+      ctx.arc(first.x, first.y, 8 / zoom, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     ctx.restore();

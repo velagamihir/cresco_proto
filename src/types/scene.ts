@@ -1,4 +1,6 @@
-export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text';
+import type { Point } from './camera';
+
+export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text' | 'path';
 
 export interface BaseNode {
     id: string;
@@ -33,4 +35,17 @@ export interface TextNode extends BaseNode {
     autoWidth?: boolean;
 }
 
-export type SceneNode = RectangleNode | EllipseNode | TextNode;
+export interface VectorAnchor {
+    x: number;
+    y: number;
+    handleIn?: Point;
+    handleOut?: Point;
+}
+
+export interface PathNode extends BaseNode {
+    type: 'path';
+    anchors: VectorAnchor[];
+    closed: boolean;
+}
+
+export type SceneNode = RectangleNode | EllipseNode | TextNode | PathNode;

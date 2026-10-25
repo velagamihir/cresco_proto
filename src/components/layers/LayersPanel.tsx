@@ -4,6 +4,7 @@ import {
     Square,
     Circle,
     Type,
+    PenTool as PenIcon,
     Trash2,
     Layers,
     PanelLeftClose,
@@ -219,6 +220,8 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                         const isText = node.type === 'text';
                         const layerName = isText
                             ? (node.text.trim() || 'Text')
+                            : node.type === 'path'
+                            ? `Vector ${nodes.length - index}`
                             : `${node.type === 'ellipse' ? 'Ellipse' : 'Rectangle'} ${nodes.length - index}`;
 
                         return (
@@ -281,6 +284,14 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                     />
                                 ) : node.type === 'text' ? (
                                     <Type
+                                        size={14}
+                                        style={{
+                                            color: isSelected ? '#ffffff' : '#888888',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                ) : node.type === 'path' ? (
+                                    <PenIcon
                                         size={14}
                                         style={{
                                             color: isSelected ? '#ffffff' : '#888888',

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SceneNode } from '../../types/scene';
+import type { SceneNode, TextNode, PathNode } from '../../types/scene';
 import {
     Trash2,
     PanelRightClose,
@@ -15,7 +15,6 @@ import {
     AlignVerticalJustifyEnd,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
-import type { TextNode } from '../../types/scene';
 
 interface PropertiesPanelProps {
     selectedNode: SceneNode | null;
@@ -120,7 +119,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
-                    {selectedNode.type}
+                    {selectedNode.type === 'path' ? 'Vector' : selectedNode.type}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {onBringToFront && (
@@ -554,15 +553,133 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 );
             })()}
 
+            {/* Vector Path Details (Anchor count, Closed/Open toggle) */}
+            {selectedNode.type === 'path' && (() => {
+                const pathNode = selectedNode as PathNode;
+                return (
+                    <div>
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Path</span>
+                            <span style={{ fontSize: 11, color: '#888' }}>
+                                {pathNode.anchors?.length || 0} points
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button
+                                onClick={() => onUpdate({ closed: !pathNode.closed })}
+                                style={{
+                                    flex: 1,
+                                    background: pathNode.closed ? '#0d99ff' : '#1e1e1e',
+                                    color: pathNode.closed ? '#ffffff' : '#aaaaaa',
+                                    border: '1px solid #333',
+                                    borderRadius: 4,
+                                    padding: '5px 8px',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {pathNode.closed ? 'Closed Path' : 'Open Path'}
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
+
+            {/* Stroke */}
+            <div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Stroke</span>
+                    {selectedNode.stroke && (
+                        <button
+                            onClick={() => onUpdate({ stroke: undefined, strokeWidth: 0 })}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                                padding: 0,
+                            }}
+                            title="Remove stroke"
+                        >
+                            Remove
+                        </button>
+                    )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                        type="color"
+                        value={selectedNode.stroke || '#ffffff'}
+                        onChange={(e) => onUpdate({ stroke: e.target.value, strokeWidth: selectedNode.strokeWidth || 1 })}
+                        style={{
+                            width: 28,
+                            height: 28,
+                            padding: 0,
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            background: 'transparent',
+                        }}
+                    />
+                    <input
+                        type="text"
+                        value={(selectedNode.stroke || '#FFFFFF').toUpperCase()}
+                        onChange={(e) => onUpdate({ stroke: e.target.value, strokeWidth: selectedNode.strokeWidth || 1 })}
+                        style={{
+                            flex: 1,
+                            background: '#1e1e1e',
+                            border: '1px solid #333',
+                            color: '#fff',
+                            padding: '4px 8px',
+                            borderRadius: 4,
+                            fontFamily: 'monospace',
+                            outline: 'none',
+                            fontSize: 12,
+                        }}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4, border: '1px solid #333', width: 62 }}>
+                        <input
+                            type="number"
+                            min={1}
+                            max={64}
+                            value={selectedNode.strokeWidth || 1}
+                            onChange={(e) => onUpdate({ strokeWidth: Math.max(1, Number(e.target.value)), stroke: selectedNode.stroke || '#ffffff' })}
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none', fontSize: 12 }}
+                        />
+                        <span style={{ color: '#888', fontSize: 11 }}>px</span>
+                    </label>
+                </div>
+            </div>
+
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 
             {/* Fill Color */}
             <div>
-                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Fill</div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Fill</span>
+                    {selectedNode.type === 'path' && (
+                        <button
+                            onClick={() => onUpdate({ fill: selectedNode.fill === 'transparent' ? '#ffffff' : 'transparent' })}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#0d99ff',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                                padding: 0,
+                            }}
+                        >
+                            {selectedNode.fill === 'transparent' ? 'Add fill' : 'Remove fill'}
+                        </button>
+                    )}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input
                         type="color"
-                        value={selectedNode.fill}
+                        value={selectedNode.fill === 'transparent' ? '#000000' : selectedNode.fill}
                         onChange={(e) => onUpdate({ fill: e.target.value })}
                         style={{
                             width: 28,
@@ -587,6 +704,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             borderRadius: 4,
                             fontFamily: 'monospace',
                             outline: 'none',
+                            fontSize: 12,
                         }}
                     />
                 </div>

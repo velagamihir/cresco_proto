@@ -6,11 +6,12 @@ import {
     Square,
     Circle,
     Type,
+    PenTool as PenIcon,
     Undo2,
     Redo2,
 } from 'lucide-react';
 
-export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'text';
+export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'pen' | 'text';
 
 interface ToolbarProps {
     activeTool: ToolType;
@@ -52,6 +53,12 @@ const TOOLS: ToolItem[] = [
         label: 'Ellipse',
         shortcut: 'O',
         icon: <Circle size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'pen',
+        label: 'Pen',
+        shortcut: 'P',
+        icon: <PenIcon size={15} strokeWidth={1.8} />,
     },
     {
         id: 'text',

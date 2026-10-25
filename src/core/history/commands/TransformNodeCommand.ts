@@ -6,6 +6,7 @@ export interface NodeBounds {
     y: number;
     width: number;
     height: number;
+    anchors?: any[];
 }
 
 export interface TransformRecord {
