@@ -596,13 +596,95 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 const length = Math.round(Math.hypot(lineNode.x2 - lineNode.x1, lineNode.y2 - lineNode.y1));
                 const angle = Math.round((Math.atan2(lineNode.y2 - lineNode.y1, lineNode.x2 - lineNode.x1) * 180) / Math.PI);
 
+                const handleAngleChange = (newAngleDeg: number) => {
+                    const curLen = Math.max(1, Math.hypot(lineNode.x2 - lineNode.x1, lineNode.y2 - lineNode.y1));
+                    const startX = lineNode.x + lineNode.x1;
+                    const startY = lineNode.y + lineNode.y1;
+                    const rad = (newAngleDeg * Math.PI) / 180;
+                    const endX = startX + Math.cos(rad) * curLen;
+                    const endY = startY + Math.sin(rad) * curLen;
+
+                    const minX = Math.min(startX, endX);
+                    const minY = Math.min(startY, endY);
+                    const width = Math.max(1, Math.abs(endX - startX));
+                    const height = Math.max(1, Math.abs(endY - startY));
+
+                    onUpdate({
+                        x: minX,
+                        y: minY,
+                        width,
+                        height,
+                        x1: startX - minX,
+                        y1: startY - minY,
+                        x2: endX - minX,
+                        y2: endY - minY,
+                    });
+                };
+
+                const handleLengthChange = (newLength: number) => {
+                    const validLength = Math.max(1, newLength);
+                    const startX = lineNode.x + lineNode.x1;
+                    const startY = lineNode.y + lineNode.y1;
+                    const rad = Math.atan2(lineNode.y2 - lineNode.y1, lineNode.x2 - lineNode.x1);
+                    const endX = startX + Math.cos(rad) * validLength;
+                    const endY = startY + Math.sin(rad) * validLength;
+
+                    const minX = Math.min(startX, endX);
+                    const minY = Math.min(startY, endY);
+                    const width = Math.max(1, Math.abs(endX - startX));
+                    const height = Math.max(1, Math.abs(endY - startY));
+
+                    onUpdate({
+                        x: minX,
+                        y: minY,
+                        width,
+                        height,
+                        x1: startX - minX,
+                        y1: startY - minY,
+                        x2: endX - minX,
+                        y2: endY - minY,
+                    });
+                };
+
                 return (
                     <div>
-                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Line Endpoints</span>
-                            <span style={{ fontSize: 11, color: '#888' }}>
-                                {length}px · {angle}°
-                            </span>
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>
+                            Line Geometry
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    Length (px)
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4, border: '1px solid #333' }}>
+                                    <span style={{ color: '#888', fontSize: 11 }}>L</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={length}
+                                        onChange={(e) => handleLengthChange(Number(e.target.value))}
+                                        style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none', fontSize: 12 }}
+                                    />
+                                </label>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    Angle (°)
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4, border: '1px solid #333' }}>
+                                    <span style={{ color: '#888', fontSize: 11 }}>°</span>
+                                    <input
+                                        type="number"
+                                        value={angle}
+                                        onChange={(e) => handleAngleChange(Number(e.target.value))}
+                                        style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none', fontSize: 12 }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>
+                            Endpoints
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             <div>
