@@ -82,6 +82,12 @@ export const CanvasViewport: React.FC = () => {
         setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
     }, []);
 
+    // Deselect all selected nodes
+    const deselect = useCallback(() => {
+        selectedIdsRef.current = new Set();
+        setSelectedIds(new Set());
+    }, []);
+
 
     // Initialize starter shape and subscribe to SceneGraph updates
     useEffect(() => {
@@ -354,8 +360,13 @@ export const CanvasViewport: React.FC = () => {
                 handleRedo();
                 return;
             }
+            if (e.key === 'Backspace' || e.key === 'Escape') {
+                e.preventDefault();
+                deselect();
+            }
 
-            if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (e.key === 'Delete') {
+                e.preventDefault();
                 handleDeleteSelected();
             }
 
@@ -453,7 +464,7 @@ export const CanvasViewport: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [syncNodes, handleResetZoom]);
+    }, [syncNodes, handleResetZoom, deselect]);
 
     // Update cursor dynamically based on active tool
     useEffect(() => {
