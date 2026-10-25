@@ -89,18 +89,8 @@ export const CanvasViewport: React.FC = () => {
     }, []);
 
 
-    // Initialize starter shape and subscribe to SceneGraph updates
+    // Subscribe to SceneGraph updates
     useEffect(() => {
-        sceneGraphRef.current.addNode({
-            id: 'rect-1',
-            type: 'rectangle',
-            x: -100,
-            y: -75,
-            width: 200,
-            height: 150,
-            fill: '#0d99ff',
-            cornerRadius: 8,
-        });
         syncNodes();
 
         // Subscribe to all SceneGraph changes to update React state in real-time (e.g. during drag/resize)
