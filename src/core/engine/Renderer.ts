@@ -150,9 +150,18 @@ export class Renderer {
       targetX = textNode.x + textNode.width;
     }
 
+    const totalTextHeight = metrics.lines.length * metrics.lineHeight;
+    let startY = textNode.y;
+    const verticalAlign = textNode.verticalAlign || 'top';
+    if (verticalAlign === 'middle') {
+      startY = textNode.y + Math.max(0, (textNode.height - totalTextHeight) / 2);
+    } else if (verticalAlign === 'bottom') {
+      startY = textNode.y + Math.max(0, textNode.height - totalTextHeight);
+    }
+
     for (let i = 0; i < metrics.lines.length; i++) {
       const line = metrics.lines[i];
-      const lineY = textNode.y + i * metrics.lineHeight;
+      const lineY = startY + i * metrics.lineHeight;
       ctx.fillText(line, targetX, lineY);
     }
 

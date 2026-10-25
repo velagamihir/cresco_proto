@@ -941,6 +941,16 @@ export const CanvasViewport: React.FC = () => {
                 const scaledLineHeight = (textNode.lineHeight || 1.25) * scaledFontSize;
                 const widthPx = textNode.autoWidth ? Math.max(60, textNode.width * zoom) : textNode.width * zoom;
 
+                const verticalAlign = textNode.verticalAlign || 'top';
+                const linesCount = (textNode.text || '').split('\n').length;
+                const totalTextHeight = Math.max(scaledLineHeight, linesCount * scaledLineHeight);
+                const currentHeight = Math.max(scaledLineHeight, textNode.height * zoom);
+                const topPadding = verticalAlign === 'middle'
+                    ? Math.max(0, (currentHeight - totalTextHeight) / 2)
+                    : verticalAlign === 'bottom'
+                    ? Math.max(0, currentHeight - totalTextHeight)
+                    : 0;
+
                 return (
                     <textarea
                         autoFocus
@@ -959,7 +969,7 @@ export const CanvasViewport: React.FC = () => {
                             sceneGraphRef.current.updateNode(textNode.id, {
                                 text: newText,
                                 width: textNode.autoWidth ? metrics.width : textNode.width,
-                                height: metrics.height,
+                                height: textNode.autoWidth ? metrics.height : textNode.height,
                             });
                             syncNodes();
                         }}
@@ -988,7 +998,10 @@ export const CanvasViewport: React.FC = () => {
                             border: 'none',
                             outline: 'none',
                             resize: 'none',
-                            padding: 0,
+                            paddingTop: `${topPadding}px`,
+                            paddingBottom: 0,
+                            paddingLeft: 0,
+                            paddingRight: 0,
                             margin: 0,
                             overflow: 'hidden',
                             whiteSpace: textNode.autoWidth ? 'pre' : 'pre-wrap',

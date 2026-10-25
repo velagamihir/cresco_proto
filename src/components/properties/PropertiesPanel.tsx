@@ -10,6 +10,9 @@ import {
     AlignLeft,
     AlignCenter,
     AlignRight,
+    AlignVerticalJustifyStart,
+    AlignVerticalJustifyCenter,
+    AlignVerticalJustifyEnd,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
 import type { TextNode } from '../../types/scene';
@@ -316,7 +319,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <input
                             type="number"
                             value={Math.round(selectedNode.width)}
-                            onChange={(e) => onUpdate({ width: Math.max(1, Number(e.target.value)) })}
+                            onChange={(e) =>
+                                onUpdate({
+                                    width: Math.max(1, Number(e.target.value)),
+                                    ...(selectedNode.type === 'text' ? { autoWidth: false } : {}),
+                                })
+                            }
                             style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
                         />
                     </label>
@@ -325,7 +333,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <input
                             type="number"
                             value={Math.round(selectedNode.height)}
-                            onChange={(e) => onUpdate({ height: Math.max(1, Number(e.target.value)) })}
+                            onChange={(e) =>
+                                onUpdate({
+                                    height: Math.max(1, Number(e.target.value)),
+                                    ...(selectedNode.type === 'text' ? { autoWidth: false } : {}),
+                                })
+                            }
                             style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
                         />
                     </label>
@@ -367,7 +380,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     onUpdate({
                         ...updates,
                         width: textNode.autoWidth ? metrics.width : textNode.width,
-                        height: metrics.height,
+                        height: textNode.autoWidth ? metrics.height : textNode.height,
                     });
                 };
 
@@ -437,9 +450,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             </label>
                         </div>
 
-                        {/* Text Alignment */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#888', fontSize: 11 }}>Alignment</span>
+                        {/* Text Alignment: Horizontal & Vertical */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                            {/* Horizontal Alignment */}
                             <div style={{ display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333', overflow: 'hidden' }}>
                                 <button
                                     onClick={() => updateTextProperty({ textAlign: 'left' })}
@@ -448,7 +461,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                         background: (textNode.textAlign || 'left') === 'left' ? '#0d99ff' : 'transparent',
                                         border: 'none',
                                         color: (textNode.textAlign || 'left') === 'left' ? '#ffffff' : '#888888',
-                                        padding: '5px 8px',
+                                        padding: '5px 7px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -463,7 +476,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                         background: textNode.textAlign === 'center' ? '#0d99ff' : 'transparent',
                                         border: 'none',
                                         color: textNode.textAlign === 'center' ? '#ffffff' : '#888888',
-                                        padding: '5px 8px',
+                                        padding: '5px 7px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -478,13 +491,62 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                         background: textNode.textAlign === 'right' ? '#0d99ff' : 'transparent',
                                         border: 'none',
                                         color: textNode.textAlign === 'right' ? '#ffffff' : '#888888',
-                                        padding: '5px 8px',
+                                        padding: '5px 7px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                     }}
                                 >
                                     <AlignRight size={13} />
+                                </button>
+                            </div>
+
+                            {/* Vertical Alignment */}
+                            <div style={{ display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333', overflow: 'hidden' }}>
+                                <button
+                                    onClick={() => updateTextProperty({ verticalAlign: 'top' })}
+                                    title="Align Top"
+                                    style={{
+                                        background: (textNode.verticalAlign || 'top') === 'top' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: (textNode.verticalAlign || 'top') === 'top' ? '#ffffff' : '#888888',
+                                        padding: '5px 7px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignVerticalJustifyStart size={13} />
+                                </button>
+                                <button
+                                    onClick={() => updateTextProperty({ verticalAlign: 'middle' })}
+                                    title="Align Middle"
+                                    style={{
+                                        background: textNode.verticalAlign === 'middle' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: textNode.verticalAlign === 'middle' ? '#ffffff' : '#888888',
+                                        padding: '5px 7px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignVerticalJustifyCenter size={13} />
+                                </button>
+                                <button
+                                    onClick={() => updateTextProperty({ verticalAlign: 'bottom' })}
+                                    title="Align Bottom"
+                                    style={{
+                                        background: textNode.verticalAlign === 'bottom' ? '#0d99ff' : 'transparent',
+                                        border: 'none',
+                                        color: textNode.verticalAlign === 'bottom' ? '#ffffff' : '#888888',
+                                        padding: '5px 7px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <AlignVerticalJustifyEnd size={13} />
                                 </button>
                             </div>
                         </div>

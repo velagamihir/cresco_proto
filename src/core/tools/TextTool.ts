@@ -35,6 +35,7 @@ export class TextTool {
             fontFamily: 'Inter',
             fontWeight: 400,
             textAlign: 'left',
+            verticalAlign: 'top',
             lineHeight: 1.25,
             autoWidth: true,
             fill: '#ffffff',
