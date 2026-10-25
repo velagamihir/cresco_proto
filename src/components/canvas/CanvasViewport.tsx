@@ -1,14 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Camera } from '../../core/camera/Camera';
 import { CANVAS_CONFIG } from '../../constants/canvas';
 import { SceneGraph } from '../../core/scene/SceneGraph';
 import { Renderer } from '../../core/engine/Renderer';
 import { SelectTool } from '../../core/tools/SelectTool';
 import { RectTool } from '../../core/tools/RectTool';
-import type { ToolType } from '../toolbar/Toolbar';
 import { Toolbar } from '../toolbar/Toolbar';
 import { PropertiesPanel } from '../properties/PropertiesPanel';
-import type { RectangleNode } from '../../types/scene';
+import { LayersPanel } from '../layers/LayersPanel';
+import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import type { RectangleNode, SceneNode } from '../../types/scene';
+import type { ToolType } from '../toolbar/Toolbar';
 
 export const CanvasViewport: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -19,61 +21,51 @@ export const CanvasViewport: React.FC = () => {
 
     const [activeTool, setActiveTool] = useState<ToolType>('select');
     const activeToolRef = useRef<ToolType>('select');
-
-    useEffect(() => {
-        activeToolRef.current = activeTool;
-    }, [activeTool]);
+    activeToolRef.current = activeTool;
 
     const isPanningRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
     const isSpacePressedRef = useRef(false);
 
+    // Sidebar visibility state
+    const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+    const [showRightSidebar, setShowRightSidebar] = useState(true);
+
+    // Selection & Node lists
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const selectedIdsRef = useRef<Set<string>>(selectedIds);
+    selectedIdsRef.current = selectedIds;
 
-    useEffect(() => {
-        selectedIdsRef.current = selectedIds;
-    }, [selectedIds]);
-
+    const [nodesList, setNodesList] = useState<SceneNode[]>([]);
     const [zoomPercent, setZoomPercent] = useState(100);
 
-    // 1. Resolve currently selected shape object for the properties panel via state
-    const [selectedNode, setSelectedNode] = useState<RectangleNode | null>(null);
-
-    useEffect(() => {
-        if (selectedIds.size === 1) {
-            const id = Array.from(selectedIds)[0];
-            setSelectedNode((sceneGraphRef.current.getNode(id) as RectangleNode) || null);
-        } else {
-            setSelectedNode(null);
-        }
-    }, [selectedIds]);
-
-    // Listen to SceneGraph changes to keep properties panel in sync live during resize / move
-    useEffect(() => {
-        return sceneGraphRef.current.subscribe((id, updatedNode) => {
-            if (selectedIdsRef.current.has(id)) {
-                setSelectedNode(updatedNode ? ({ ...updatedNode } as RectangleNode) : null);
-            }
-        });
+    // Sync React list with internal SceneGraph
+    const syncNodes = useCallback(() => {
+        setNodesList([...sceneGraphRef.current.getAllNodes()]);
     }, []);
 
-    // 2. Handlers for updating and deleting properties
-    const handleUpdateSelected = (updates: Partial<RectangleNode>) => {
-        if (!selectedNode) return;
-        sceneGraphRef.current.updateNode(selectedNode.id, updates);
-        setSelectedNode((prev) => (prev ? { ...prev, ...updates } : null));
-        // Trigger React re-render of properties panel & canvas
-        setSelectedIds(new Set(selectedIds));
-    };
+    // Reset camera zoom to 100%
+    const handleResetZoom = useCallback(() => {
+        const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        cameraRef.current.resetZoom(center);
+        setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
+    }, []);
 
-    const handleDeleteSelected = () => {
-        for (const id of selectedIds) {
-            sceneGraphRef.current.deleteNode(id);
-        }
-        selectedIdsRef.current = new Set();
-        setSelectedIds(new Set());
-    };
+    // Initialize starter shape
+    useEffect(() => {
+        sceneGraphRef.current.addNode({
+            id: 'rect-1',
+            type: 'rectangle',
+            x: -100,
+            y: -75,
+            width: 200,
+            height: 150,
+            fill: '#0d99ff',
+            cornerRadius: 8,
+        });
+        syncNodes();
+    }, [syncNodes]);
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -95,7 +87,7 @@ export const CanvasViewport: React.FC = () => {
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Continuous render loop
+        // Main render loop
         const render = () => {
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -106,13 +98,13 @@ export const CanvasViewport: React.FC = () => {
             ctx.fillStyle = CANVAS_CONFIG.BACKGROUND_COLOR;
             ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-            // Grid
+            // Infinite Grid
             cameraRef.current.renderGrid(ctx, {
                 width: window.innerWidth,
                 height: window.innerHeight,
             });
 
-            // World objects & selection
+            // World objects & selection outlines
             ctx.save();
             cameraRef.current.applyTransform(ctx);
             Renderer.renderScene(
@@ -129,16 +121,6 @@ export const CanvasViewport: React.FC = () => {
 
         render();
 
-        // Event Handlers
-        const onWheel = (e: WheelEvent) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const focalPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            cameraRef.current.handleWheel(e, focalPoint);
-            setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
-        };
-
-        // Helper to determine cursor based on handle
         const getHandleCursor = (handle: string | null): string => {
             if (handle === 'tl' || handle === 'br') return 'nwse-resize';
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
@@ -147,6 +129,14 @@ export const CanvasViewport: React.FC = () => {
             if (activeToolRef.current === 'rectangle') return 'crosshair';
             if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
             return 'default';
+        };
+
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const focalPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            cameraRef.current.handleWheel(e, focalPoint);
+            setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
         };
 
         const onMouseDown = (e: MouseEvent) => {
@@ -175,6 +165,7 @@ export const CanvasViewport: React.FC = () => {
                 } else if (activeToolRef.current === 'rectangle') {
                     rectToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
                         setSelectedIds(new Set([id]));
+                        syncNodes();
                     });
                 }
             }
@@ -196,8 +187,6 @@ export const CanvasViewport: React.FC = () => {
 
             if (activeToolRef.current === 'select') {
                 selectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current);
-
-                // Update cursor dynamically when hovering over handles (if space isn't held)
                 if (!isSpacePressedRef.current) {
                     const hoveredHandle = selectToolRef.current.onPointerHover(
                         worldPoint,
@@ -222,6 +211,7 @@ export const CanvasViewport: React.FC = () => {
 
             if (activeToolRef.current === 'select') {
                 selectToolRef.current.onPointerUp();
+                syncNodes();
             } else if (activeToolRef.current === 'rectangle') {
                 rectToolRef.current.onPointerUp(sceneGraphRef.current, (completedId) => {
                     if (completedId) {
@@ -229,14 +219,13 @@ export const CanvasViewport: React.FC = () => {
                     } else {
                         setSelectedIds(new Set());
                     }
-                    // Figma UX: Automatically switch back to Select tool after drawing
                     setActiveTool('select');
+                    syncNodes();
                 });
             }
         };
 
         const onKeyDown = (e: KeyboardEvent) => {
-            // Don't intercept if user is typing in an input field
             if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
                 return;
             }
@@ -257,16 +246,32 @@ export const CanvasViewport: React.FC = () => {
             if (e.key === 'r' || e.key === 'R') {
                 setActiveTool('rectangle');
             }
-            if (e.key === 'Delete') {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
                 for (const id of selectedIdsRef.current) {
                     sceneGraphRef.current.deleteNode(id);
                 }
-                selectedIdsRef.current = new Set();
                 setSelectedIds(new Set());
+                syncNodes();
             }
-            if (e.key === 'Backspace' || e.key === 'Escape') {
-                selectedIdsRef.current = new Set();
-                setSelectedIds(new Set());
+            if (e.key === 'l' || e.key === 'L' || e.key === '[') {
+                setShowLeftSidebar((prev) => !prev);
+            }
+            if (e.key === 'p' || e.key === 'P' || e.key === ']') {
+                setShowRightSidebar((prev) => !prev);
+            }
+            if (e.key === '\\') {
+                setShowLeftSidebar((prev) => {
+                    const next = !prev;
+                    setShowRightSidebar(next);
+                    return next;
+                });
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+                e.preventDefault();
+                handleResetZoom();
+            }
+            if (e.shiftKey && (e.key === '0' || e.key === ')')) {
+                handleResetZoom();
             }
         };
 
@@ -298,7 +303,7 @@ export const CanvasViewport: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, []);
+    }, [syncNodes, handleResetZoom]);
 
     // Update cursor dynamically based on active tool
     useEffect(() => {
@@ -313,31 +318,172 @@ export const CanvasViewport: React.FC = () => {
         }
     }, [activeTool]);
 
+    // Handle Layer click
+    const handleSelectFromLayer = (id: string, isShift: boolean) => {
+        if (isShift) {
+            const next = new Set(selectedIds);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            setSelectedIds(next);
+        } else {
+            setSelectedIds(new Set([id]));
+        }
+    };
+
+    // Node updates & deletes
+    const selectedNode =
+        selectedIds.size === 1
+            ? (sceneGraphRef.current.getNode(Array.from(selectedIds)[0]) as RectangleNode) || null
+            : null;
+
+    const handleUpdateSelected = (updates: Partial<RectangleNode>) => {
+        if (!selectedNode) return;
+        sceneGraphRef.current.updateNode(selectedNode.id, updates);
+        setSelectedIds(new Set(selectedIds));
+        syncNodes();
+    };
+
+    const handleDeleteNode = (id: string) => {
+        sceneGraphRef.current.deleteNode(id);
+        const next = new Set(selectedIds);
+        next.delete(id);
+        setSelectedIds(next);
+        syncNodes();
+    };
+
+    const handleDeleteSelected = () => {
+        for (const id of selectedIds) {
+            sceneGraphRef.current.deleteNode(id);
+        }
+        setSelectedIds(new Set());
+        syncNodes();
+    };
+
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+            {/* Top Toolbar */}
             <Toolbar activeTool={activeTool} onSelectTool={setActiveTool} />
-            <PropertiesPanel
-                selectedNode={selectedNode}
-                onUpdate={handleUpdateSelected}
-                onDelete={handleDeleteSelected}
-            />
+
+            {/* Left Sidebar: Layers or Expand Button */}
+            {showLeftSidebar ? (
+                <LayersPanel
+                    nodes={nodesList}
+                    selectedIds={selectedIds}
+                    onSelectNode={handleSelectFromLayer}
+                    onDeleteNode={handleDeleteNode}
+                    onToggleCollapse={() => setShowLeftSidebar(false)}
+                />
+            ) : (
+                <button
+                    onClick={() => setShowLeftSidebar(true)}
+                    title="Show Layers Panel (L)"
+                    style={{
+                        position: 'absolute',
+                        top: 14,
+                        left: 14,
+                        zIndex: 15,
+                        backgroundColor: '#252525',
+                        border: '1px solid #383838',
+                        color: '#cccccc',
+                        borderRadius: 6,
+                        width: 32,
+                        height: 32,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                        transition: 'background-color 0.12s, color 0.12s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#333333';
+                        e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#252525';
+                        e.currentTarget.style.color = '#cccccc';
+                    }}
+                >
+                    <PanelLeftOpen size={16} />
+                </button>
+            )}
+
+            {/* Right Sidebar: Properties or Expand Button */}
+            {showRightSidebar ? (
+                <PropertiesPanel
+                    selectedNode={selectedNode}
+                    onUpdate={handleUpdateSelected}
+                    onDelete={handleDeleteSelected}
+                    onToggleCollapse={() => setShowRightSidebar(false)}
+                />
+            ) : (
+                <button
+                    onClick={() => setShowRightSidebar(true)}
+                    title="Show Properties Panel (P)"
+                    style={{
+                        position: 'absolute',
+                        top: 14,
+                        right: 14,
+                        zIndex: 15,
+                        backgroundColor: '#252525',
+                        border: '1px solid #383838',
+                        color: '#cccccc',
+                        borderRadius: 6,
+                        width: 32,
+                        height: 32,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                        transition: 'background-color 0.12s, color 0.12s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#333333';
+                        e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#252525';
+                        e.currentTarget.style.color = '#cccccc';
+                    }}
+                >
+                    <PanelRightOpen size={16} />
+                </button>
+            )}
+
+            {/* Canvas */}
             <canvas ref={canvasRef} style={{ display: 'block' }} />
-            <div
+
+            {/* Zoom indicator / Reset zoom button */}
+            <button
+                type="button"
+                onClick={handleResetZoom}
+                title="Reset zoom to 100% (Shift+0)"
                 style={{
                     position: 'absolute',
                     bottom: 16,
-                    right: 256, // Shift left so it clears the right sidebar
+                    right: showRightSidebar ? 256 : 16,
                     background: '#2b2b2b',
-                    color: '#fff',
+                    color: '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     padding: '4px 10px',
                     borderRadius: '4px',
                     fontFamily: 'monospace',
                     fontSize: '12px',
                     userSelect: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    transition: 'right 0.15s ease, background-color 0.12s ease',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#383838';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2b2b2b';
                 }}
             >
                 {zoomPercent}%
-            </div>
+            </button>
         </div>
     );
 };

@@ -70,6 +70,16 @@ export class Camera {
         this.zoom = next.zoom;
     }
 
+    /**
+     * Resets camera zoom to 100% (zoom = 1) centered around a focal point.
+     */
+    public resetZoom(focalPoint: Point): void {
+        const next = zoomAtFocalPoint(this.getState(), focalPoint, 1);
+        this.x = next.x;
+        this.y = next.y;
+        this.zoom = next.zoom;
+    }
+
     public toWorld(screenPoint: Point): Point {
         return screenToWorld(screenPoint, this.getState());
     }

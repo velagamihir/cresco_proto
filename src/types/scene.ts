@@ -1,4 +1,4 @@
-export type NodeType = 'rectangle' | 'frame';
+export type NodeType = 'rectangle' | 'ellipse' | 'frame';
 
 export interface BaseNode {
     id: string;
@@ -17,4 +17,8 @@ export interface RectangleNode extends BaseNode {
     cornerRadius?: number;
 }
 
-export type SceneNode = RectangleNode;
+export interface EllipseNode extends BaseNode {
+    type: 'ellipse';
+}
+
+export type SceneNode = RectangleNode | EllipseNode;

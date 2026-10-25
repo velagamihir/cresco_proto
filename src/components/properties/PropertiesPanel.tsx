@@ -1,17 +1,19 @@
 import React from 'react';
 import type { RectangleNode } from '../../types/scene';
-import { Trash2 } from 'lucide-react';
+import { Trash2, PanelRightClose } from 'lucide-react';
 
 interface PropertiesPanelProps {
     selectedNode: RectangleNode | null;
     onUpdate: (updates: Partial<RectangleNode>) => void;
     onDelete: () => void;
+    onToggleCollapse?: () => void;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectedNode,
     onUpdate,
     onDelete,
+    onToggleCollapse,
 }) => {
     if (!selectedNode) {
         return (
@@ -31,9 +33,42 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     userSelect: 'none',
                     boxSizing: 'border-box',
                     zIndex: 10,
+                    display: 'flex',
+                    flexDirection: 'column',
                 }}
             >
-                <p style={{ marginTop: 24, textAlign: 'center' }}>No layer selected</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: '#e0e0e0' }}>Properties</span>
+                    {onToggleCollapse && (
+                        <button
+                            onClick={onToggleCollapse}
+                            title="Hide Properties (P)"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 4,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <PanelRightClose size={16} />
+                        </button>
+                    )}
+                </div>
+                <p style={{ marginTop: 32, textAlign: 'center' }}>No layer selected</p>
             </aside>
         );
     }
@@ -64,21 +99,59 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
                     {selectedNode.type}
                 </span>
-                <button
-                    onClick={onDelete}
-                    title="Delete Shape"
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ff5c5c',
-                        cursor: 'pointer',
-                        padding: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                    }}
-                >
-                    <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                        onClick={onDelete}
+                        title="Delete Shape"
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ff5c5c',
+                            cursor: 'pointer',
+                            padding: 4,
+                            borderRadius: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'background 0.12s',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 92, 92, 0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                    >
+                        <Trash2 size={15} />
+                    </button>
+                    {onToggleCollapse && (
+                        <button
+                            onClick={onToggleCollapse}
+                            title="Hide Properties (P)"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#888888',
+                                cursor: 'pointer',
+                                padding: 4,
+                                borderRadius: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'color 0.12s, background 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.backgroundColor = '#333333';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.color = '#888888';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                        >
+                            <PanelRightClose size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
