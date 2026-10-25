@@ -24,6 +24,14 @@ export class SceneGraph {
         this.notify(node.id, node);
     }
 
+    public insertNodeAt(node: SceneNode, index: number): void {
+        const list = Array.from(this.nodes.values());
+        const clampedIndex = Math.max(0, Math.min(list.length, index));
+        list.splice(clampedIndex, 0, node);
+        this.setNodes(list);
+    }
+
+
     public getNode(id: string): SceneNode | undefined {
         return this.nodes.get(id);
     }

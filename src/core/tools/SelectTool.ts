@@ -240,9 +240,47 @@ export class SelectTool {
   }
 
   /**
-   * Pointer Up: Reset active drag session.
+   * Pointer Up: Reset active drag session and return any transformation records.
    */
-  public onPointerUp(): void {
+  public onPointerUp(sceneGraph?: SceneGraph): {
+    id: string;
+    before: { x: number; y: number; width: number; height: number };
+    after: { x: number; y: number; width: number; height: number };
+  }[] {
+    const changes: {
+      id: string;
+      before: { x: number; y: number; width: number; height: number };
+      after: { x: number; y: number; width: number; height: number };
+    }[] = [];
+
+    if (this.dragState && sceneGraph) {
+      for (const [id, initial] of this.dragState.initialNodeBounds.entries()) {
+        const current = sceneGraph.getNode(id);
+        if (current) {
+          const hasChanged =
+            current.x !== initial.x ||
+            current.y !== initial.y ||
+            current.width !== initial.width ||
+            current.height !== initial.height;
+
+          if (hasChanged) {
+            changes.push({
+              id,
+              before: { ...initial },
+              after: {
+                x: current.x,
+                y: current.y,
+                width: current.width,
+                height: current.height,
+              },
+            });
+          }
+        }
+      }
+    }
+
     this.dragState = null;
+    return changes;
   }
 }
+
