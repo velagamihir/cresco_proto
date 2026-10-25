@@ -1,4 +1,5 @@
 import type { SceneNode, RectangleNode } from '../../types/scene';
+import { getResizeHandles } from '../../utils/math';
 
 export class Renderer {
   public static renderScene(
@@ -66,25 +67,20 @@ export class Renderer {
     ctx.lineWidth = strokeWidth;
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
-    // 4 Corner handles
+    // 8 Handles (4 corners + 4 edge midpoints)
     ctx.fillStyle = '#ffffff';
-    const corners = [
-      { x: node.x, y: node.y },
-      { x: node.x + node.width, y: node.y },
-      { x: node.x, y: node.y + node.height },
-      { x: node.x + node.width, y: node.y + node.height },
-    ];
+    const handles = getResizeHandles(node);
 
-    for (const corner of corners) {
+    for (const h of handles) {
       ctx.fillRect(
-        corner.x - handleSize / 2,
-        corner.y - handleSize / 2,
+        h.x - handleSize / 2,
+        h.y - handleSize / 2,
         handleSize,
         handleSize
       );
       ctx.strokeRect(
-        corner.x - handleSize / 2,
-        corner.y - handleSize / 2,
+        h.x - handleSize / 2,
+        h.y - handleSize / 2,
         handleSize,
         handleSize
       );

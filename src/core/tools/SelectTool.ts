@@ -207,6 +207,32 @@ export class SelectTool {
           newHeight = minSize;
           newY = initial.y + initial.height - minSize;
         }
+      } else if (handle === 'r') {
+        // 1D Width resize (Right edge)
+        newWidth = Math.max(minSize, initial.width + deltaX);
+      } else if (handle === 'l') {
+        // 1D Width resize (Left edge)
+        const desiredWidth = initial.width - deltaX;
+        if (desiredWidth >= minSize) {
+          newWidth = desiredWidth;
+          newX = initial.x + deltaX;
+        } else {
+          newWidth = minSize;
+          newX = initial.x + initial.width - minSize;
+        }
+      } else if (handle === 'b') {
+        // 1D Height resize (Bottom edge)
+        newHeight = Math.max(minSize, initial.height + deltaY);
+      } else if (handle === 't') {
+        // 1D Height resize (Top edge)
+        const desiredHeight = initial.height - deltaY;
+        if (desiredHeight >= minSize) {
+          newHeight = desiredHeight;
+          newY = initial.y + deltaY;
+        } else {
+          newHeight = minSize;
+          newY = initial.y + initial.height - minSize;
+        }
       }
 
       sceneGraph.updateNode(id, {

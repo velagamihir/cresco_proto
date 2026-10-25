@@ -157,6 +157,8 @@ export const CanvasViewport: React.FC = () => {
         const getHandleCursor = (handle: string | null): string => {
             if (handle === 'tl' || handle === 'br') return 'nwse-resize';
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
+            if (handle === 't' || handle === 'b') return 'ns-resize';
+            if (handle === 'l' || handle === 'r') return 'ew-resize';
             if (activeToolRef.current === 'rectangle') return 'crosshair';
             if (activeToolRef.current === 'hand') return isPanningRef.current ? 'grabbing' : 'grab';
             return 'default';
