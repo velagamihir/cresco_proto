@@ -985,7 +985,7 @@ export const CanvasViewport: React.FC = () => {
                             color: textNode.fill || '#ffffff',
                             caretColor: '#0d99ff',
                             backgroundColor: 'transparent',
-                            border: '1.5px solid #0d99ff',
+                            border: 'none',
                             outline: 'none',
                             resize: 'none',
                             padding: 0,

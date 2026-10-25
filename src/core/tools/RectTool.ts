@@ -28,8 +28,6 @@ export class RectTool {
             width: 0,
             height: 0,
             fill: '#d9d9d9', // Default Figma rectangle fill
-            stroke: '#0d99ff',
-            strokeWidth: 1,
             cornerRadius: 0,
         };
 

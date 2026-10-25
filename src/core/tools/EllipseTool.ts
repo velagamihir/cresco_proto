@@ -28,8 +28,6 @@ export class EllipseTool {
             width: 0,
             height: 0,
             fill: '#d9d9d9', // Default Figma shape fill
-            stroke: '#0d99ff',
-            strokeWidth: 1,
         };
 
         sceneGraph.addNode(newEllipse);

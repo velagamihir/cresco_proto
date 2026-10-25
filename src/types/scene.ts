@@ -28,6 +28,7 @@ export interface TextNode extends BaseNode {
     fontFamily: string;
     fontWeight: number | string;
     textAlign: 'left' | 'center' | 'right';
+    verticalAlign?: 'top' | 'middle' | 'bottom';
     lineHeight?: number;
     autoWidth?: boolean;
 }
