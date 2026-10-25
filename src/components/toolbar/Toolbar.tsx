@@ -7,11 +7,13 @@ import {
     Circle,
     Type,
     PenTool as PenIcon,
+    Minus,
+    ArrowUpRight,
     Undo2,
     Redo2,
 } from 'lucide-react';
 
-export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'pen' | 'text';
+export type ToolType = 'select' | 'hand' | 'comment' | 'rectangle' | 'ellipse' | 'pen' | 'line' | 'arrow' | 'text';
 
 interface ToolbarProps {
     activeTool: ToolType;
@@ -53,6 +55,18 @@ const TOOLS: ToolItem[] = [
         label: 'Ellipse',
         shortcut: 'O',
         icon: <Circle size={15} strokeWidth={1.8} />,
+    },
+    {
+        id: 'line',
+        label: 'Line',
+        shortcut: 'L',
+        icon: <Minus size={15} strokeWidth={2.5} style={{ transform: 'rotate(-45deg)' }} />,
+    },
+    {
+        id: 'arrow',
+        label: 'Arrow',
+        shortcut: 'Shift+L',
+        icon: <ArrowUpRight size={15} strokeWidth={1.8} />,
     },
     {
         id: 'pen',

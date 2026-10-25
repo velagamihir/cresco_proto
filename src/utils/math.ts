@@ -84,14 +84,49 @@ export function isPointInsideEllipse(
 }
 
 /**
+ * Computes shortest distance from point P to line segment AB.
+ */
+export function distanceToSegment(p: Point, a: Point, b: Point): number {
+    const l2 = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+    if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    const t = clamp(((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2, 0, 1);
+    const projX = a.x + t * (b.x - a.x);
+    const projY = a.y + t * (b.y - a.y);
+    return Math.hypot(p.x - projX, p.y - projY);
+}
+
+/**
  * Checks if a point in 2D space falls inside a SceneNode based on its specific geometry.
  */
 export function isPointInsideNode(
     point: Point,
-    node: { type: string; x: number; y: number; width: number; height: number }
+    node: {
+        type: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        x1?: number;
+        y1?: number;
+        x2?: number;
+        y2?: number;
+        strokeWidth?: number;
+    }
 ): boolean {
     if (node.type === 'ellipse') {
         return isPointInsideEllipse(point, node);
+    }
+    if (
+        node.type === 'line' &&
+        node.x1 !== undefined &&
+        node.y1 !== undefined &&
+        node.x2 !== undefined &&
+        node.y2 !== undefined
+    ) {
+        const a = { x: node.x + node.x1, y: node.y + node.y1 };
+        const b = { x: node.x + node.x2, y: node.y + node.y2 };
+        const tolerance = Math.max(7, (node.strokeWidth || 2) + 4);
+        return distanceToSegment(point, a, b) <= tolerance;
     }
     return isPointInsideBounds(point, node);
 }

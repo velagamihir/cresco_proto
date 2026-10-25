@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import type { SceneNode } from '../../types/scene';
+import type { SceneNode, LineNode } from '../../types/scene';
 import {
     Square,
     Circle,
     Type,
     PenTool as PenIcon,
+    Minus,
+    ArrowUpRight,
     Trash2,
     Layers,
     PanelLeftClose,
@@ -222,6 +224,8 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                             ? (node.text.trim() || 'Text')
                             : node.type === 'path'
                             ? `Vector ${nodes.length - index}`
+                            : node.type === 'line'
+                            ? ((node as LineNode).endMarker === 'arrow' ? `Arrow ${nodes.length - index}` : `Line ${nodes.length - index}`)
                             : `${node.type === 'ellipse' ? 'Ellipse' : 'Rectangle'} ${nodes.length - index}`;
 
                         return (
@@ -298,6 +302,26 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
                                             flexShrink: 0,
                                         }}
                                     />
+                                ) : node.type === 'line' ? (
+                                    (node as LineNode).endMarker === 'arrow' ? (
+                                        <ArrowUpRight
+                                            size={14}
+                                            style={{
+                                                color: isSelected ? '#ffffff' : '#888888',
+                                                flexShrink: 0,
+                                            }}
+                                        />
+                                    ) : (
+                                        <Minus
+                                            size={14}
+                                            strokeWidth={2.5}
+                                            style={{
+                                                color: isSelected ? '#ffffff' : '#888888',
+                                                flexShrink: 0,
+                                                transform: 'rotate(-45deg)',
+                                            }}
+                                        />
+                                    )
                                 ) : (
                                     <Square
                                         size={14}

@@ -1,5 +1,5 @@
 import type { Point } from '../../types/camera';
-import type { PathNode, VectorAnchor } from '../../types/scene';
+import type { PathNode, VectorAnchor, LineNode } from '../../types/scene';
 import { SceneGraph } from '../scene/SceneGraph';
 import {
   isPointInsideNode,
@@ -14,7 +14,17 @@ interface DragState {
   dragStartWorld: Point;
   initialNodeBounds: Map<
     string,
-    { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] }
+    {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      anchors?: VectorAnchor[];
+      x1?: number;
+      y1?: number;
+      x2?: number;
+      y2?: number;
+    }
   >;
 }
 
@@ -79,12 +89,17 @@ export class SelectTool {
         const hitHandle = hitTestResizeHandles(worldPoint, node, zoom);
         if (hitHandle) {
           const initialMap = new Map();
+          const line = node.type === 'line' ? (node as LineNode) : undefined;
           initialMap.set(selectedId, {
             x: node.x,
             y: node.y,
             width: node.width,
             height: node.height,
             anchors: node.type === 'path' ? JSON.parse(JSON.stringify((node as PathNode).anchors)) : undefined,
+            x1: line ? line.x1 : undefined,
+            y1: line ? line.y1 : undefined,
+            x2: line ? line.x2 : undefined,
+            y2: line ? line.y2 : undefined,
           });
 
           this.dragState = {
@@ -543,6 +558,19 @@ export class SelectTool {
           height: newHeight,
           anchors: scaledAnchors,
         });
+      } else if (node && node.type === 'line' && initial.x1 !== undefined && initial.width > 0 && initial.height > 0) {
+        const sx = newWidth / initial.width;
+        const sy = newHeight / initial.height;
+        sceneGraph.updateNode(id, {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+          x1: (initial.x1 || 0) * sx,
+          y1: (initial.y1 || 0) * sy,
+          x2: (initial.x2 || 0) * sx,
+          y2: (initial.y2 || 0) * sy,
+        });
       } else {
         sceneGraph.updateNode(id, {
           x: newX,
@@ -559,13 +587,13 @@ export class SelectTool {
    */
   public onPointerUp(sceneGraph?: SceneGraph): {
     id: string;
-    before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
-    after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
+    before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+    after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
   }[] {
     const changes: {
       id: string;
-      before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
-      after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[] };
+      before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+      after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
     }[] = [];
 
     if (this.dragState && sceneGraph) {
@@ -588,6 +616,10 @@ export class SelectTool {
                 width: current.width,
                 height: current.height,
                 anchors: current.type === 'path' ? (current as PathNode).anchors : undefined,
+                x1: current.type === 'line' ? (current as LineNode).x1 : undefined,
+                y1: current.type === 'line' ? (current as LineNode).y1 : undefined,
+                x2: current.type === 'line' ? (current as LineNode).x2 : undefined,
+                y2: current.type === 'line' ? (current as LineNode).y2 : undefined,
               },
             });
           }

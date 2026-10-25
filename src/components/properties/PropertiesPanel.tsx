@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SceneNode, TextNode, PathNode } from '../../types/scene';
+import type { SceneNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
 import {
     Trash2,
     PanelRightClose,
@@ -119,7 +119,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
-                    {selectedNode.type === 'path' ? 'Vector' : selectedNode.type}
+                    {selectedNode.type === 'path'
+                        ? 'Vector'
+                        : selectedNode.type === 'line'
+                        ? ((selectedNode as LineNode).endMarker === 'arrow' ? 'Arrow' : 'Line')
+                        : selectedNode.type}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {onBringToFront && (
@@ -586,6 +590,76 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 );
             })()}
 
+            {/* Line / Arrow Details */}
+            {selectedNode.type === 'line' && (() => {
+                const lineNode = selectedNode as LineNode;
+                const length = Math.round(Math.hypot(lineNode.x2 - lineNode.x1, lineNode.y2 - lineNode.y1));
+                const angle = Math.round((Math.atan2(lineNode.y2 - lineNode.y1, lineNode.x2 - lineNode.x1) * 180) / Math.PI);
+
+                return (
+                    <div>
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Line Endpoints</span>
+                            <span style={{ fontSize: 11, color: '#888' }}>
+                                {length}px · {angle}°
+                            </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    Start Point
+                                </label>
+                                <select
+                                    value={lineNode.startMarker || 'none'}
+                                    onChange={(e) => onUpdate({ startMarker: e.target.value as MarkerType })}
+                                    style={{
+                                        width: '100%',
+                                        background: '#1e1e1e',
+                                        border: '1px solid #333',
+                                        color: '#fff',
+                                        padding: '4px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 12,
+                                        outline: 'none',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <option value="none">None</option>
+                                    <option value="arrow">Arrow</option>
+                                    <option value="triangle">Triangle</option>
+                                    <option value="circle">Circle</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 11, color: '#888888', marginBottom: 4 }}>
+                                    End Point
+                                </label>
+                                <select
+                                    value={lineNode.endMarker || 'none'}
+                                    onChange={(e) => onUpdate({ endMarker: e.target.value as MarkerType })}
+                                    style={{
+                                        width: '100%',
+                                        background: '#1e1e1e',
+                                        border: '1px solid #333',
+                                        color: '#fff',
+                                        padding: '4px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 12,
+                                        outline: 'none',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <option value="none">None</option>
+                                    <option value="arrow">Arrow</option>
+                                    <option value="triangle">Triangle</option>
+                                    <option value="circle">Circle</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 
             {/* Stroke */}
@@ -654,61 +728,64 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
             </div>
 
-            <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
-
-            {/* Fill Color */}
-            <div>
-                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Fill</span>
-                    {selectedNode.type === 'path' && (
-                        <button
-                            onClick={() => onUpdate({ fill: selectedNode.fill === 'transparent' ? '#ffffff' : 'transparent' })}
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#0d99ff',
-                                cursor: 'pointer',
-                                fontSize: 11,
-                                padding: 0,
-                            }}
-                        >
-                            {selectedNode.fill === 'transparent' ? 'Add fill' : 'Remove fill'}
-                        </button>
-                    )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                        type="color"
-                        value={selectedNode.fill === 'transparent' ? '#000000' : selectedNode.fill}
-                        onChange={(e) => onUpdate({ fill: e.target.value })}
-                        style={{
-                            width: 28,
-                            height: 28,
-                            padding: 0,
-                            border: 'none',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            background: 'transparent',
-                        }}
-                    />
-                    <input
-                        type="text"
-                        value={selectedNode.fill.toUpperCase()}
-                        onChange={(e) => onUpdate({ fill: e.target.value })}
-                        style={{
-                            flex: 1,
-                            background: '#1e1e1e',
-                            border: '1px solid #333',
-                            color: '#fff',
-                            padding: '4px 8px',
-                            borderRadius: 4,
-                            fontFamily: 'monospace',
-                            outline: 'none',
-                            fontSize: 12,
-                        }}
-                    />
-                </div>
-            </div>
+            {/* Fill Color (not applicable for lines) */}
+            {selectedNode.type !== 'line' && (
+                <>
+                    <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
+                    <div>
+                        <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Fill</span>
+                            {selectedNode.type === 'path' && (
+                                <button
+                                    onClick={() => onUpdate({ fill: selectedNode.fill === 'transparent' ? '#ffffff' : 'transparent' })}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#0d99ff',
+                                        cursor: 'pointer',
+                                        fontSize: 11,
+                                        padding: 0,
+                                    }}
+                                >
+                                    {selectedNode.fill === 'transparent' ? 'Add fill' : 'Remove fill'}
+                                </button>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                                type="color"
+                                value={selectedNode.fill === 'transparent' ? '#000000' : selectedNode.fill}
+                                onChange={(e) => onUpdate({ fill: e.target.value })}
+                                style={{
+                                    width: 28,
+                                    height: 28,
+                                    padding: 0,
+                                    border: 'none',
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                    background: 'transparent',
+                                }}
+                            />
+                            <input
+                                type="text"
+                                value={selectedNode.fill.toUpperCase()}
+                                onChange={(e) => onUpdate({ fill: e.target.value })}
+                                style={{
+                                    flex: 1,
+                                    background: '#1e1e1e',
+                                    border: '1px solid #333',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    fontFamily: 'monospace',
+                                    outline: 'none',
+                                    fontSize: 12,
+                                }}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </aside>
     );
 };

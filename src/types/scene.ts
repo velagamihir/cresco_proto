@@ -1,6 +1,6 @@
 import type { Point } from './camera';
 
-export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text' | 'path';
+export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text' | 'path' | 'line';
 
 export interface BaseNode {
     id: string;
@@ -48,4 +48,16 @@ export interface PathNode extends BaseNode {
     closed: boolean;
 }
 
-export type SceneNode = RectangleNode | EllipseNode | TextNode | PathNode;
+export type MarkerType = 'none' | 'arrow' | 'triangle' | 'circle';
+
+export interface LineNode extends BaseNode {
+    type: 'line';
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    startMarker?: MarkerType;
+    endMarker?: MarkerType;
+}
+
+export type SceneNode = RectangleNode | EllipseNode | TextNode | PathNode | LineNode;

@@ -1,4 +1,4 @@
-import type { SceneNode, RectangleNode, EllipseNode, TextNode, PathNode } from '../../types/scene';
+import type { SceneNode, RectangleNode, EllipseNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
 import type { PenDrawingState } from '../tools/PenTool';
 import { getResizeHandles } from '../../utils/math';
 import { getFontString, measureTextLines } from '../../utils/text';
@@ -36,6 +36,9 @@ export class Renderer {
           break;
         case 'path':
           this.renderPath(ctx, node);
+          break;
+        case 'line':
+          this.renderLine(ctx, node);
           break;
       }
     }
@@ -261,6 +264,87 @@ export class Renderer {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  private static renderLine(
+    ctx: CanvasRenderingContext2D,
+    line: LineNode
+  ): void {
+    const x1 = line.x + line.x1;
+    const y1 = line.y + line.y1;
+    const x2 = line.x + line.x2;
+    const y2 = line.y + line.y2;
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length < 0.5) return;
+
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const stroke = line.stroke || '#ffffff';
+    const strokeWidth = line.strokeWidth || 2;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    if (line.startMarker && line.startMarker !== 'none') {
+      this.renderMarker(ctx, x1, y1, angle + Math.PI, line.startMarker, stroke, strokeWidth);
+    }
+    if (line.endMarker && line.endMarker !== 'none') {
+      this.renderMarker(ctx, x2, y2, angle, line.endMarker, stroke, strokeWidth);
+    }
+
+    ctx.restore();
+  }
+
+  private static renderMarker(
+    ctx: CanvasRenderingContext2D,
+    tipX: number,
+    tipY: number,
+    angle: number,
+    markerType: MarkerType,
+    color: string,
+    strokeWidth: number
+  ): void {
+    ctx.save();
+    ctx.translate(tipX, tipY);
+    ctx.rotate(angle);
+
+    if (markerType === 'arrow') {
+      const arrowSize = Math.max(8, strokeWidth * 3.5);
+      const arrowAngle = Math.PI / 6; // 30 degrees
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = strokeWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(-arrowSize * Math.cos(arrowAngle), -arrowSize * Math.sin(arrowAngle));
+      ctx.lineTo(0, 0);
+      ctx.lineTo(-arrowSize * Math.cos(arrowAngle), arrowSize * Math.sin(arrowAngle));
+      ctx.stroke();
+    } else if (markerType === 'triangle') {
+      const arrowSize = Math.max(9, strokeWidth * 4);
+      const arrowAngle = Math.PI / 6;
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-arrowSize * Math.cos(arrowAngle), -arrowSize * Math.sin(arrowAngle));
+      ctx.lineTo(-arrowSize * Math.cos(arrowAngle), arrowSize * Math.sin(arrowAngle));
+      ctx.closePath();
+      ctx.fill();
+    } else if (markerType === 'circle') {
+      const radius = Math.max(3.5, strokeWidth * 1.5);
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     ctx.restore();
