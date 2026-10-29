@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Camera } from '../../core/camera/Camera';
 import { CANVAS_CONFIG } from '../../constants/canvas';
 import { SceneGraph } from '../../core/scene/SceneGraph';
-import { Renderer } from '../../core/engine/Renderer';
+import { Renderer, type DistanceMeasurement } from '../../core/engine/Renderer';
 import { SelectTool } from '../../core/tools/SelectTool';
 import { RectTool } from '../../core/tools/RectTool';
 import { EllipseTool } from '../../core/tools/EllipseTool';
@@ -153,6 +153,8 @@ export const CanvasViewport: React.FC = () => {
     const isPanningRef = useRef(false);
     const lastMousePosRef = useRef({ x: 0, y: 0 });
     const isSpacePressedRef = useRef(false);
+    const isAltPressedRef = useRef(false);
+    const hoveredNodeForMeasurementRef = useRef<SceneNode | null>(null);
 
     // Sidebar visibility state
     const [showLeftSidebar, setShowLeftSidebar] = useState(true);
@@ -401,6 +403,33 @@ export const CanvasViewport: React.FC = () => {
                 height: window.innerHeight,
             });
 
+            // Compute Alt/Option Distance Measurement Guide
+            let measurement: DistanceMeasurement | null = null;
+            if (isAltPressedRef.current && selectedIdsRef.current.size > 0 && hoveredNodeForMeasurementRef.current) {
+                const targetNode = hoveredNodeForMeasurementRef.current;
+                const allSelected = sceneGraphRef.current
+                    .getAllNodes()
+                    .filter((n) => selectedIdsRef.current.has(n.id));
+
+                if (allSelected.length > 0) {
+                    let minX = Infinity;
+                    let minY = Infinity;
+                    let maxX = -Infinity;
+                    let maxY = -Infinity;
+                    for (const s of allSelected) {
+                        minX = Math.min(minX, s.x);
+                        minY = Math.min(minY, s.y);
+                        maxX = Math.max(maxX, s.x + s.width);
+                        maxY = Math.max(maxY, s.y + s.height);
+                    }
+                    measurement = {
+                        selectedBox: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+                        targetBox: { x: targetNode.x, y: targetNode.y, width: targetNode.width, height: targetNode.height },
+                        targetNode,
+                    };
+                }
+            }
+
             // World objects & selection outlines
             ctx.save();
             cameraRef.current.applyTransform(ctx);
@@ -411,7 +440,8 @@ export const CanvasViewport: React.FC = () => {
                 cameraRef.current.getState().zoom,
                 editingTextIdRef.current,
                 selectToolRef.current.getSnapGuides(),
-                selectToolRef.current.getMarqueeBox()
+                selectToolRef.current.getMarqueeBox(),
+                measurement
             );
             Renderer.renderPenPreview(
                 ctx,
@@ -541,6 +571,26 @@ export const CanvasViewport: React.FC = () => {
                 cameraRef.current.pan(dx, dy);
                 updateCameraState();
                 return;
+            }
+
+            // Track hovered node for Alt/Option distance measurement (Figma Dev & Inspection Mode)
+            if (e.altKey && selectedIdsRef.current.size > 0 && !selectToolRef.current.isDragging()) {
+                isAltPressedRef.current = true;
+                const allNodes = sceneGraphRef.current.getAllNodes();
+                let hovered: SceneNode | null = null;
+                for (let i = allNodes.length - 1; i >= 0; i--) {
+                    const node = allNodes[i];
+                    if (!selectedIdsRef.current.has(node.id) && isPointInsideNode(worldPoint, node)) {
+                        hovered = node;
+                        break;
+                    }
+                }
+                hoveredNodeForMeasurementRef.current = hovered;
+            } else {
+                isAltPressedRef.current = e.altKey;
+                if (!e.altKey) {
+                    hoveredNodeForMeasurementRef.current = null;
+                }
             }
 
             if (activeToolRef.current === 'select') {
@@ -691,6 +741,11 @@ export const CanvasViewport: React.FC = () => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
                 return;
+            }
+
+            if (e.key === 'Alt') {
+                e.preventDefault();
+                isAltPressedRef.current = true;
             }
 
             if (e.code === 'Space' && !e.repeat) {
@@ -899,6 +954,12 @@ export const CanvasViewport: React.FC = () => {
         };
 
         const onKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Alt') {
+                e.preventDefault();
+                isAltPressedRef.current = false;
+                hoveredNodeForMeasurementRef.current = null;
+            }
+
             if (e.code === 'Space') {
                 isSpacePressedRef.current = false;
                 if (activeToolRef.current === 'hand') {

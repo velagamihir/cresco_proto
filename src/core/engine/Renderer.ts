@@ -11,6 +11,12 @@ export interface SnapGuide {
   end: number;
 }
 
+export interface DistanceMeasurement {
+  selectedBox: { x: number; y: number; width: number; height: number };
+  targetBox: { x: number; y: number; width: number; height: number };
+  targetNode?: SceneNode;
+}
+
 export class Renderer {
   public static renderScene(
     ctx: CanvasRenderingContext2D,
@@ -19,7 +25,8 @@ export class Renderer {
     zoom: number,
     editingNodeId?: string | null,
     snapGuides?: SnapGuide[],
-    marqueeBox?: MarqueeBox | null
+    marqueeBox?: MarqueeBox | null,
+    distanceMeasurement?: DistanceMeasurement | null
   ): void {
     // Map frame children
     const childMap = new Map<string, SceneNode[]>();
@@ -89,6 +96,11 @@ export class Renderer {
       }
 
       ctx.restore();
+    }
+
+    // 5. Render Alt/Option Distance Measurement Guides (Figma red inspection guides)
+    if (distanceMeasurement) {
+      this.renderDistanceMeasurement(ctx, distanceMeasurement, zoom);
     }
   }
 
@@ -447,6 +459,201 @@ export class Renderer {
     ctx.strokeStyle = '#0d99ff';
     ctx.lineWidth = 1 / zoom;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
+    ctx.restore();
+  }
+
+  private static renderDistanceMeasurement(
+    ctx: CanvasRenderingContext2D,
+    meas: DistanceMeasurement,
+    zoom: number
+  ): void {
+    const { selectedBox: s, targetBox: t } = meas;
+    ctx.save();
+
+    // 1. Highlight target box in bold red
+    ctx.strokeStyle = '#f24822'; // Figma red inspection guide
+    ctx.lineWidth = 1.5 / zoom;
+    ctx.strokeRect(t.x, t.y, t.width, t.height);
+
+    // Also draw a light outline around selected box if not single selection
+    ctx.strokeStyle = '#0d99ff';
+    ctx.lineWidth = 1 / zoom;
+    ctx.setLineDash([3 / zoom, 3 / zoom]);
+    ctx.strokeRect(s.x, s.y, s.width, s.height);
+    ctx.setLineDash([]);
+
+    // Line helper
+    const drawMeasurement = (
+      p1: { x: number; y: number },
+      p2: { x: number; y: number },
+      dist: number,
+      orientation: 'horizontal' | 'vertical'
+    ) => {
+      if (Math.round(dist) <= 0) return;
+
+      ctx.save();
+      ctx.strokeStyle = '#f24822';
+      ctx.lineWidth = 1.5 / zoom;
+
+      // Guide line
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      // End caps
+      const capSize = 4 / zoom;
+      ctx.beginPath();
+      if (orientation === 'horizontal') {
+        ctx.moveTo(p1.x, p1.y - capSize);
+        ctx.lineTo(p1.x, p1.y + capSize);
+        ctx.moveTo(p2.x, p2.y - capSize);
+        ctx.lineTo(p2.x, p2.y + capSize);
+      } else {
+        ctx.moveTo(p1.x - capSize, p1.y);
+        ctx.lineTo(p1.x + capSize, p1.y);
+        ctx.moveTo(p2.x - capSize, p2.y);
+        ctx.lineTo(p2.x + capSize, p2.y);
+      }
+      ctx.stroke();
+
+      // Distance badge text
+      const midX = (p1.x + p2.x) / 2;
+      const midY = (p1.y + p2.y) / 2;
+      const text = `${Math.round(dist)}`;
+      const fontSize = 11 / zoom;
+      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+      const textMetrics = ctx.measureText(text);
+      const paddingX = 4 / zoom;
+      const paddingY = 2 / zoom;
+      const badgeW = textMetrics.width + paddingX * 2;
+      const badgeH = fontSize + paddingY * 2;
+
+      // Badge pill background
+      ctx.fillStyle = '#f24822';
+      ctx.beginPath();
+      const r = 3 / zoom;
+      const bx = midX - badgeW / 2;
+      const by = midY - badgeH / 2;
+      ctx.roundRect ? ctx.roundRect(bx, by, badgeW, badgeH, r) : ctx.rect(bx, by, badgeW, badgeH);
+      ctx.fill();
+
+      // Badge text
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, midX, midY);
+
+      ctx.restore();
+    };
+
+    const sRight = s.x + s.width;
+    const sBottom = s.y + s.height;
+    const tRight = t.x + t.width;
+    const tBottom = t.y + t.height;
+
+    // Check if target contains selected (inside relationship)
+    const isTargetContainer =
+      t.x <= s.x && tRight >= sRight && t.y <= s.y && tBottom >= sBottom;
+
+    if (isTargetContainer) {
+      // 4 interior measurements (padding to parent)
+      // Top
+      const topDist = s.y - t.y;
+      const midX = s.x + s.width / 2;
+      drawMeasurement({ x: midX, y: t.y }, { x: midX, y: s.y }, topDist, 'vertical');
+
+      // Bottom
+      const bottomDist = tBottom - sBottom;
+      drawMeasurement({ x: midX, y: sBottom }, { x: midX, y: tBottom }, bottomDist, 'vertical');
+
+      // Left
+      const leftDist = s.x - t.x;
+      const midY = s.y + s.height / 2;
+      drawMeasurement({ x: t.x, y: midY }, { x: s.x, y: midY }, leftDist, 'horizontal');
+
+      // Right
+      const rightDist = tRight - sRight;
+      drawMeasurement({ x: sRight, y: midY }, { x: tRight, y: midY }, rightDist, 'horizontal');
+    } else {
+      // External or overlapping measurements
+      // Horizontal separation
+      const yOverlapStart = Math.max(s.y, t.y);
+      const yOverlapEnd = Math.min(sBottom, tBottom);
+      const hasYOverlap = yOverlapStart < yOverlapEnd;
+      const measureY = hasYOverlap ? (yOverlapStart + yOverlapEnd) / 2 : s.y + s.height / 2;
+
+      if (tRight < s.x) {
+        // Target is directly to the Left
+        const dist = s.x - tRight;
+        drawMeasurement({ x: tRight, y: measureY }, { x: s.x, y: measureY }, dist, 'horizontal');
+      } else if (t.x > sRight) {
+        // Target is directly to the Right
+        const dist = t.x - sRight;
+        drawMeasurement({ x: sRight, y: measureY }, { x: t.x, y: measureY }, dist, 'horizontal');
+      }
+
+      // Vertical separation
+      const xOverlapStart = Math.max(s.x, t.x);
+      const xOverlapEnd = Math.min(sRight, tRight);
+      const hasXOverlap = xOverlapStart < xOverlapEnd;
+      const measureX = hasXOverlap ? (xOverlapStart + xOverlapEnd) / 2 : s.x + s.width / 2;
+
+      if (tBottom < s.y) {
+        // Target is directly Above
+        const dist = s.y - tBottom;
+        drawMeasurement({ x: measureX, y: tBottom }, { x: measureX, y: s.y }, dist, 'vertical');
+      } else if (t.y > sBottom) {
+        // Target is directly Below
+        const dist = t.y - sBottom;
+        drawMeasurement({ x: measureX, y: sBottom }, { x: measureX, y: t.y }, dist, 'vertical');
+      }
+
+      // When there is no overlap in either X or Y (diagonal), measure both axes
+      if (!hasXOverlap && !hasYOverlap) {
+        // Draw alignment projections
+        ctx.save();
+        ctx.strokeStyle = '#f24822';
+        ctx.lineWidth = 1 / zoom;
+        ctx.setLineDash([2 / zoom, 2 / zoom]);
+
+        if (t.x > sRight && t.y > sBottom) {
+          // Bottom-Right
+          ctx.beginPath();
+          ctx.moveTo(sRight, s.y + s.height / 2);
+          ctx.lineTo(t.x, s.y + s.height / 2);
+          ctx.moveTo(s.x + s.width / 2, sBottom);
+          ctx.lineTo(s.x + s.width / 2, t.y);
+          ctx.stroke();
+        } else if (tRight < s.x && t.y > sBottom) {
+          // Bottom-Left
+          ctx.beginPath();
+          ctx.moveTo(tRight, s.y + s.height / 2);
+          ctx.lineTo(s.x, s.y + s.height / 2);
+          ctx.moveTo(s.x + s.width / 2, sBottom);
+          ctx.lineTo(s.x + s.width / 2, t.y);
+          ctx.stroke();
+        } else if (t.x > sRight && tBottom < s.y) {
+          // Top-Right
+          ctx.beginPath();
+          ctx.moveTo(sRight, s.y + s.height / 2);
+          ctx.lineTo(t.x, s.y + s.height / 2);
+          ctx.moveTo(s.x + s.width / 2, tBottom);
+          ctx.lineTo(s.x + s.width / 2, s.y);
+          ctx.stroke();
+        } else if (tRight < s.x && tBottom < s.y) {
+          // Top-Left
+          ctx.beginPath();
+          ctx.moveTo(tRight, s.y + s.height / 2);
+          ctx.lineTo(s.x, s.y + s.height / 2);
+          ctx.moveTo(s.x + s.width / 2, tBottom);
+          ctx.lineTo(s.x + s.width / 2, s.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
     ctx.restore();
   }
 
