@@ -31,12 +31,6 @@ This document outlines the core architecture and feature requirements needed to 
 
 ## 2. Layout, Framing & Hierarchy
 
-- [ ] **Auto Layout (Flexbox equivalent)**
-  - Flow direction: Horizontal, Vertical, and Wrap.
-  - Independent padding (Top, Right, Bottom, Left).
-  - Item spacing (Gap) and alignment controls (packed, space-between, start, center, end).
-  - Sizing modes for parent and child: `Fixed`, `Hug contents`, and `Fill container`.
-  - Absolute positioning overrides inside Auto Layout containers.
 - [ ] **Responsive Constraints**
   - Pinning layers relative to parent frames: Left, Right, Left & Right, Center, Scale, Top, Bottom, Top & Bottom.
 - [ ] **Nested Hierarchy & Canvas Parenting**
@@ -111,7 +105,7 @@ This document outlines the core architecture and feature requirements needed to 
 | Phase | Focus Areas | Key Deliverables |
 | :--- | :--- | :--- |
 | **Phase 1: Polish Fundamentals** | Multi-select & Canvas Control | Marquee multi-select, rotation handles, smart alignment guides, export to PNG/SVG. |
-| **Phase 2: Modern Layout** | Auto Layout & Constraints | Flexbox Auto Layout engine (`hug`/`fill`/`fixed`), responsive frame constraints. |
+| **Phase 2: Modern Layout** | Framing & Constraints | Frame clipping, responsive frame constraints, canvas reparenting. |
 | **Phase 3: Design Systems** | Components & Styles | Master components, instance overrides, variant sets, shared color/typography styles. |
 | **Phase 4: Prototyping** | Interactions & Preview | Interaction links, transition animations, Smart Animate, device presentation viewer. |
 | **Phase 5: Collaboration** | Multiplayer & Dev Mode | CRDT multiplayer sync (Yjs/WebSockets), live cursors, comments, Alt-hover measurement tool. |
