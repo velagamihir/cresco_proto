@@ -342,7 +342,8 @@ export class SelectTool {
       this.activeSnapGuides = [];
 
       if (otherNodes.length > 0) {
-        const snapThreshold = 6 / zoom; // 6 screen pixels converted to world space
+        // Generous, forgiving snap threshold (at least 8px up to 10px in screen space)
+        const snapThreshold = Math.max(8 / zoom, 8);
 
         // Collect all snap candidate targets across all other elements
         const candidateXTargets: { pos: number; top: number; bottom: number }[] = [];
@@ -523,7 +524,8 @@ export class SelectTool {
       this.activeSnapGuides = [];
 
       if (otherNodes.length > 0) {
-        const snapThreshold = 6 / zoom;
+        // Generous, forgiving snap threshold (at least 8px up to 10px in screen space)
+        const snapThreshold = Math.max(8 / zoom, 8);
         const candidateXTargets: { pos: number; top: number; bottom: number }[] = [];
         const candidateYTargets: { pos: number; left: number; right: number }[] = [];
 
