@@ -2,6 +2,24 @@ import type { Point } from './camera';
 
 export type NodeType = 'rectangle' | 'ellipse' | 'frame' | 'text' | 'path' | 'line';
 
+export interface DropShadowEffect {
+    type: 'drop-shadow';
+    color: string;
+    offsetX: number;
+    offsetY: number;
+    blur: number;
+    spread?: number;
+    visible?: boolean;
+}
+
+export interface LayerBlurEffect {
+    type: 'layer-blur';
+    blur: number;
+    visible?: boolean;
+}
+
+export type LayerEffect = DropShadowEffect | LayerBlurEffect;
+
 export interface BaseNode {
     id: string;
     type: NodeType;
@@ -15,6 +33,8 @@ export interface BaseNode {
     stroke?: string;
     strokeWidth?: number;
     rotation?: number; // In degrees (-180 to 180 or 0 to 360)
+    opacity?: number; // 0 to 1
+    effects?: LayerEffect[];
 }
 
 export interface RectangleNode extends BaseNode {

@@ -92,6 +92,26 @@ export class Renderer {
     }
   }
 
+  private static applyNodeEffects(ctx: CanvasRenderingContext2D, node: SceneNode): void {
+    if (node.opacity !== undefined && node.opacity >= 0 && node.opacity <= 1) {
+      ctx.globalAlpha = node.opacity;
+    }
+
+    if (node.effects && node.effects.length > 0) {
+      for (const eff of node.effects) {
+        if (eff.visible === false) continue;
+        if (eff.type === 'drop-shadow') {
+          ctx.shadowColor = eff.color || 'rgba(0, 0, 0, 0.35)';
+          ctx.shadowOffsetX = eff.offsetX;
+          ctx.shadowOffsetY = eff.offsetY;
+          ctx.shadowBlur = eff.blur;
+        } else if (eff.type === 'layer-blur' && eff.blur > 0) {
+          ctx.filter = `blur(${eff.blur}px)`;
+        }
+      }
+    }
+  }
+
   private static renderSingleNode(
     ctx: CanvasRenderingContext2D,
     node: SceneNode,
@@ -105,6 +125,8 @@ export class Renderer {
       ctx.rotate((node.rotation * Math.PI) / 180);
       ctx.translate(-centerX, -centerY);
     }
+
+    this.applyNodeEffects(ctx, node);
 
     switch (node.type) {
       case 'rectangle':
@@ -139,6 +161,14 @@ export class Renderer {
     editingNodeId?: string | null
   ): void {
     ctx.save();
+    if (frame.rotation) {
+      const centerX = frame.x + frame.width / 2;
+      const centerY = frame.y + frame.height / 2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate((frame.rotation * Math.PI) / 180);
+      ctx.translate(-centerX, -centerY);
+    }
+    this.applyNodeEffects(ctx, frame);
 
     // 1. Frame Background Fill
     ctx.fillStyle = frame.fill || '#ffffff';

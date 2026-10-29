@@ -16,6 +16,9 @@ import {
     AlignVerticalJustifyCenter,
     AlignVerticalJustifyEnd,
     Download,
+    Plus,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
 import { ExportEngine, type ExportFormat } from '../../core/engine/ExportEngine';
@@ -1062,6 +1065,168 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </div>
                 </>
             )}
+
+            {/* Effects Section (Figma style Drop Shadow & Layer Blur) */}
+            <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
+            <div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Effects</span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const currentEffects = selectedNode.effects ? [...selectedNode.effects] : [];
+                            currentEffects.push({
+                                type: 'drop-shadow',
+                                color: 'rgba(0, 0, 0, 0.25)',
+                                offsetX: 0,
+                                offsetY: 4,
+                                blur: 8,
+                                visible: true,
+                            });
+                            onUpdate({ effects: currentEffects });
+                        }}
+                        title="Add Effect"
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#0d99ff',
+                            cursor: 'pointer',
+                            padding: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            borderRadius: 4,
+                        }}
+                    >
+                        <Plus size={14} />
+                    </button>
+                </div>
+
+                {(!selectedNode.effects || selectedNode.effects.length === 0) ? (
+                    <div style={{ fontSize: 11, color: '#666' }}>No effects applied</div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {selectedNode.effects.map((effect, idx) => (
+                            <div key={idx} style={{ background: '#1e1e1e', padding: 8, borderRadius: 4, border: '1px solid #333' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <select
+                                        value={effect.type}
+                                        onChange={(e) => {
+                                            const nextEffects = [...(selectedNode.effects || [])];
+                                            const nextType = e.target.value as 'drop-shadow' | 'layer-blur';
+                                            if (nextType === 'layer-blur') {
+                                                nextEffects[idx] = { type: 'layer-blur', blur: 4, visible: true };
+                                            } else {
+                                                nextEffects[idx] = { type: 'drop-shadow', color: 'rgba(0,0,0,0.25)', offsetX: 0, offsetY: 4, blur: 8, visible: true };
+                                            }
+                                            onUpdate({ effects: nextEffects });
+                                        }}
+                                        style={{
+                                            background: '#2b2b2b',
+                                            color: '#fff',
+                                            border: '1px solid #444',
+                                            borderRadius: 4,
+                                            fontSize: 11,
+                                            padding: '2px 4px',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <option value="drop-shadow">Drop Shadow</option>
+                                        <option value="layer-blur">Layer Blur</option>
+                                    </select>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const nextEffects = [...(selectedNode.effects || [])];
+                                                nextEffects[idx] = { ...effect, visible: effect.visible === false ? true : false };
+                                                onUpdate({ effects: nextEffects });
+                                            }}
+                                            style={{ background: 'transparent', border: 'none', color: effect.visible === false ? '#666' : '#fff', cursor: 'pointer', padding: 2 }}
+                                        >
+                                            {effect.visible === false ? <EyeOff size={13} /> : <Eye size={13} />}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const nextEffects = (selectedNode.effects || []).filter((_, i) => i !== idx);
+                                                onUpdate({ effects: nextEffects });
+                                            }}
+                                            style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: 2 }}
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {effect.type === 'drop-shadow' ? (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#888' }}>
+                                            X
+                                            <input
+                                                type="number"
+                                                value={effect.offsetX}
+                                                onChange={(e) => {
+                                                    const nextEffects = [...(selectedNode.effects || [])];
+                                                    nextEffects[idx] = { ...effect, offsetX: Number(e.target.value) };
+                                                    onUpdate({ effects: nextEffects });
+                                                }}
+                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
+                                            />
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#888' }}>
+                                            Y
+                                            <input
+                                                type="number"
+                                                value={effect.offsetY}
+                                                onChange={(e) => {
+                                                    const nextEffects = [...(selectedNode.effects || [])];
+                                                    nextEffects[idx] = { ...effect, offsetY: Number(e.target.value) };
+                                                    onUpdate({ effects: nextEffects });
+                                                }}
+                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
+                                            />
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#888' }}>
+                                            Blur
+                                            <input
+                                                type="number"
+                                                value={effect.blur}
+                                                min={0}
+                                                onChange={(e) => {
+                                                    const nextEffects = [...(selectedNode.effects || [])];
+                                                    nextEffects[idx] = { ...effect, blur: Math.max(0, Number(e.target.value)) };
+                                                    onUpdate({ effects: nextEffects });
+                                                }}
+                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
+                                            />
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#888' }}>
+                                            Blur Radius
+                                            <input
+                                                type="number"
+                                                value={effect.blur}
+                                                min={0}
+                                                onChange={(e) => {
+                                                    const nextEffects = [...(selectedNode.effects || [])];
+                                                    nextEffects[idx] = { ...effect, blur: Math.max(0, Number(e.target.value)) };
+                                                    onUpdate({ effects: nextEffects });
+                                                }}
+                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
+                                            />
+                                            <span style={{ fontSize: 10 }}>px</span>
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Export Section (Figma style) */}
             <hr style={{ borderColor: '#333333', borderTop: 'none', margin: '16px 0 12px 0' }} />
