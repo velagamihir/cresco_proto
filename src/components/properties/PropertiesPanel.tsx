@@ -18,7 +18,7 @@ import {
     Download,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
-import { ExportEngine, type ExportFormat, type ExportScale } from '../../core/engine/ExportEngine';
+import { ExportEngine, type ExportFormat } from '../../core/engine/ExportEngine';
 
 interface PropertiesPanelProps {
     selectedNode: SceneNode | null;
@@ -50,7 +50,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     onInsertPreset,
 }) => {
     const [exportFormat, setExportFormat] = useState<ExportFormat>('png');
-    const [exportScale, setExportScale] = useState<ExportScale>(1);
     const [isExporting, setIsExporting] = useState(false);
 
     const handleExport = async () => {
@@ -63,7 +62,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 targets,
                 { getAllNodes: () => allNodes },
                 exportFormat,
-                exportScale
+                1
             );
         } finally {
             setIsExporting(false);
@@ -1059,31 +1058,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    {/* Scale Selector */}
-                    <div style={{ flex: 1, display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333' }}>
-                        {[1, 2, 3].map((sc) => (
-                            <button
-                                key={sc}
-                                type="button"
-                                onClick={() => setExportScale(sc as ExportScale)}
-                                style={{
-                                    flex: 1,
-                                    background: exportScale === sc ? '#0d99ff' : 'transparent',
-                                    color: exportScale === sc ? '#ffffff' : '#888888',
-                                    border: 'none',
-                                    borderRadius: 3,
-                                    padding: '4px 0',
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.12s',
-                                }}
-                            >
-                                {sc}x
-                            </button>
-                        ))}
-                    </div>
-
                     {/* Format Selector */}
                     <div style={{ flex: 1, display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333' }}>
                         {(['png', 'svg'] as ExportFormat[]).map((fmt) => (
@@ -1093,11 +1067,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 onClick={() => setExportFormat(fmt)}
                                 style={{
                                     flex: 1,
-                                    background: exportFormat === fmt ? '#383838' : 'transparent',
+                                    background: exportFormat === fmt ? '#0d99ff' : 'transparent',
                                     color: exportFormat === fmt ? '#ffffff' : '#888888',
                                     border: 'none',
                                     borderRadius: 3,
-                                    padding: '4px 0',
+                                    padding: '5px 0',
                                     fontSize: 11,
                                     fontWeight: 600,
                                     textTransform: 'uppercase',
