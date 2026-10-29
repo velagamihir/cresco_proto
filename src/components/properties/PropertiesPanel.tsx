@@ -19,8 +19,6 @@ import {
     Plus,
     Eye,
     EyeOff,
-    Rows3,
-    Columns3,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
 import { ExportEngine, type ExportFormat } from '../../core/engine/ExportEngine';
@@ -542,104 +540,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 />
                                 <span style={{ fontSize: 12, color: '#e0e0e0' }}>Clip content</span>
                             </label>
-                        </div>
-
-                        {/* Auto Layout Controls (Figma Style) */}
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #333' }}>
-                            <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span>Auto Layout</span>
-                                <div style={{ display: 'flex', gap: 4 }}>
-                                    <button
-                                        type="button"
-                                        title="Horizontal layout"
-                                        onClick={() => onUpdate({ layoutMode: frameNode.layoutMode === 'horizontal' ? 'none' : 'horizontal' })}
-                                        style={{
-                                            background: frameNode.layoutMode === 'horizontal' ? '#0d99ff' : '#1e1e1e',
-                                            border: '1px solid #333',
-                                            color: '#fff',
-                                            borderRadius: 4,
-                                            padding: 4,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                        }}
-                                    >
-                                        <Columns3 size={13} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        title="Vertical layout"
-                                        onClick={() => onUpdate({ layoutMode: frameNode.layoutMode === 'vertical' ? 'none' : 'vertical' })}
-                                        style={{
-                                            background: frameNode.layoutMode === 'vertical' ? '#0d99ff' : '#1e1e1e',
-                                            border: '1px solid #333',
-                                            color: '#fff',
-                                            borderRadius: 4,
-                                            padding: 4,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                        }}
-                                    >
-                                        <Rows3 size={13} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {frameNode.layoutMode && frameNode.layoutMode !== 'none' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#1e1e1e', padding: 8, borderRadius: 4, border: '1px solid #333' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#888' }}>
-                                            Gap
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={frameNode.itemSpacing ?? 12}
-                                                onChange={(e) => onUpdate({ itemSpacing: Math.max(0, Number(e.target.value)) })}
-                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
-                                            />
-                                            <span style={{ fontSize: 10 }}>px</span>
-                                        </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#888' }}>
-                                            Padding
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={frameNode.padding ?? 16}
-                                                onChange={(e) => onUpdate({ padding: Math.max(0, Number(e.target.value)) })}
-                                                style={{ width: '100%', background: '#2b2b2b', border: '1px solid #444', borderRadius: 3, color: '#fff', padding: '2px 4px', fontSize: 11, outline: 'none' }}
-                                            />
-                                            <span style={{ fontSize: 10 }}>px</span>
-                                        </label>
-                                    </div>
-
-                                    {/* Alignment switcher */}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                                        <span style={{ fontSize: 11, color: '#888' }}>Align</span>
-                                        <div style={{ display: 'flex', gap: 4 }}>
-                                            {(['start', 'center', 'end'] as const).map((aln) => (
-                                                <button
-                                                    key={aln}
-                                                    type="button"
-                                                    onClick={() => onUpdate({ alignItems: aln })}
-                                                    style={{
-                                                        background: (frameNode.alignItems || 'start') === aln ? '#383838' : 'transparent',
-                                                        border: '1px solid #444',
-                                                        color: (frameNode.alignItems || 'start') === aln ? '#0d99ff' : '#aaa',
-                                                        borderRadius: 3,
-                                                        padding: '2px 6px',
-                                                        fontSize: 10,
-                                                        textTransform: 'capitalize',
-                                                        cursor: 'pointer',
-                                                    }}
-                                                >
-                                                    {aln}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 );
