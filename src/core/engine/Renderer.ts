@@ -97,6 +97,15 @@ export class Renderer {
     node: SceneNode,
     editingNodeId?: string | null
   ): void {
+    ctx.save();
+    if (node.rotation) {
+      const centerX = node.x + node.width / 2;
+      const centerY = node.y + node.height / 2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate((node.rotation * Math.PI) / 180);
+      ctx.translate(-centerX, -centerY);
+    }
+
     switch (node.type) {
       case 'rectangle':
         this.renderRectangle(ctx, node);
@@ -119,6 +128,7 @@ export class Renderer {
         this.renderFrame(ctx, node, [], 1, editingNodeId);
         break;
     }
+    ctx.restore();
   }
 
   private static renderFrame(
@@ -296,6 +306,14 @@ export class Renderer {
     zoom: number
   ): void {
     ctx.save();
+    if (node.rotation) {
+      const centerX = node.x + node.width / 2;
+      const centerY = node.y + node.height / 2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate((node.rotation * Math.PI) / 180);
+      ctx.translate(-centerX, -centerY);
+    }
+
     const strokeWidth = 1.5 / zoom; // Maintain consistent pixel width on screen
     const handleSize = 7 / zoom;
 
@@ -332,6 +350,13 @@ export class Renderer {
     zoom: number
   ): void {
     ctx.save();
+    if (node.rotation) {
+      const centerX = node.x + node.width / 2;
+      const centerY = node.y + node.height / 2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate((node.rotation * Math.PI) / 180);
+      ctx.translate(-centerX, -centerY);
+    }
     ctx.strokeStyle = 'rgba(13, 153, 255, 0.65)';
     ctx.lineWidth = 1 / zoom;
     ctx.strokeRect(node.x, node.y, node.width, node.height);

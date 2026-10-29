@@ -427,6 +427,7 @@ export const CanvasViewport: React.FC = () => {
         render();
 
         const getHandleCursor = (handle: string | null): string => {
+            if (handle?.startsWith('rot-')) return 'crosshair';
             if (handle === 'tl' || handle === 'br') return 'nwse-resize';
             if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
             if (handle === 't' || handle === 'b') return 'ns-resize';

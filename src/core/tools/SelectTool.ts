@@ -729,13 +729,13 @@ export class SelectTool {
    */
   public onPointerUp(sceneGraph?: SceneGraph): {
     id: string;
-    before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
-    after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+    before: { x: number; y: number; width: number; height: number; rotation?: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+    after: { x: number; y: number; width: number; height: number; rotation?: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
   }[] {
     const changes: {
       id: string;
-      before: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
-      after: { x: number; y: number; width: number; height: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+      before: { x: number; y: number; width: number; height: number; rotation?: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
+      after: { x: number; y: number; width: number; height: number; rotation?: number; anchors?: VectorAnchor[]; x1?: number; y1?: number; x2?: number; y2?: number };
     }[] = [];
 
     if (this.dragState && sceneGraph) {
@@ -746,7 +746,8 @@ export class SelectTool {
             current.x !== initial.x ||
             current.y !== initial.y ||
             current.width !== initial.width ||
-            current.height !== initial.height;
+            current.height !== initial.height ||
+            (current.rotation || 0) !== (initial.rotation || 0);
 
           if (hasChanged) {
             changes.push({
@@ -757,6 +758,7 @@ export class SelectTool {
                 y: current.y,
                 width: current.width,
                 height: current.height,
+                rotation: current.rotation,
                 anchors: current.type === 'path' ? (current as PathNode).anchors : undefined,
                 x1: current.type === 'line' ? (current as LineNode).x1 : undefined,
                 y1: current.type === 'line' ? (current as LineNode).y1 : undefined,

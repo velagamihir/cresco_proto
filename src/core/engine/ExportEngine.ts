@@ -129,13 +129,16 @@ export class ExportEngine {
       // Relative coordinates
       const relX = node.x - minX;
       const relY = node.y - minY;
+      const centerX = relX + node.width / 2;
+      const centerY = relY + node.height / 2;
+      const rotAttr = node.rotation ? ` transform="rotate(${node.rotation} ${centerX} ${centerY})"` : '';
 
       if (node.type === 'rectangle' || node.type === 'frame') {
         const frameOrRect = node as RectangleNode | FrameNode;
         const rx = frameOrRect.cornerRadius || 0;
         const fill = frameOrRect.fill || (frameOrRect.type === 'frame' ? '#ffffff' : 'transparent');
         const strokeAttr = frameOrRect.stroke ? `stroke="${frameOrRect.stroke}" stroke-width="${frameOrRect.strokeWidth || 1}"` : '';
-        body += `  <rect x="${relX}" y="${relY}" width="${frameOrRect.width}" height="${frameOrRect.height}" rx="${rx}" fill="${fill}" ${strokeAttr}/>\n`;
+        body += `  <rect x="${relX}" y="${relY}" width="${frameOrRect.width}" height="${frameOrRect.height}" rx="${rx}" fill="${fill}" ${strokeAttr}${rotAttr}/>\n`;
       } else if (node.type === 'ellipse') {
         const ellipse = node as EllipseNode;
         const rx = ellipse.width / 2;
@@ -143,14 +146,14 @@ export class ExportEngine {
         const cx = relX + rx;
         const cy = relY + ry;
         const strokeAttr = ellipse.stroke ? `stroke="${ellipse.stroke}" stroke-width="${ellipse.strokeWidth || 1}"` : '';
-        body += `  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${ellipse.fill}" ${strokeAttr}/>\n`;
+        body += `  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${ellipse.fill}" ${strokeAttr}${rotAttr}/>\n`;
       } else if (node.type === 'line') {
         const line = node as LineNode;
         const x1 = relX + line.x1;
         const y1 = relY + line.y1;
         const x2 = relX + line.x2;
         const y2 = relY + line.y2;
-        body += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${line.stroke || '#ffffff'}" stroke-width="${line.strokeWidth || 2}" stroke-linecap="round"/>\n`;
+        body += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${line.stroke || '#ffffff'}" stroke-width="${line.strokeWidth || 2}" stroke-linecap="round"${rotAttr}/>\n`;
       } else if (node.type === 'path') {
         const path = node as PathNode;
         if (path.anchors && path.anchors.length > 0) {
@@ -173,7 +176,7 @@ export class ExportEngine {
           }
           const fill = path.fill && path.fill !== 'transparent' ? path.fill : 'none';
           const stroke = path.stroke ? `stroke="${path.stroke}" stroke-width="${path.strokeWidth || 1}"` : '';
-          body += `  <path d="${d}" fill="${fill}" ${stroke}/>\n`;
+          body += `  <path d="${d}" fill="${fill}" ${stroke}${rotAttr}/>\n`;
         }
       } else if (node.type === 'text') {
         const textNode = node as TextNode;
@@ -184,7 +187,7 @@ export class ExportEngine {
         const lines: string[] = (textNode.text || '').split('\n');
         const lineHeight = (textNode.lineHeight || 1.25) * fontSize;
 
-        body += `  <text x="${relX}" y="${relY + fontSize}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">\n`;
+        body += `  <text x="${relX}" y="${relY + fontSize}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}"${rotAttr}>\n`;
         lines.forEach((line: string, idx: number) => {
           body += `    <tspan x="${relX}" dy="${idx === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>\n`;
         });

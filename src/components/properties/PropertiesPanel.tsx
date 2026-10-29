@@ -431,6 +431,21 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
                         />
                     </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e1e1e', padding: '4px 8px', borderRadius: 4, gridColumn: 'span 2' }}>
+                        <span style={{ color: '#888' }}>°</span>
+                        <input
+                            type="number"
+                            value={Math.round(selectedNode.rotation || 0)}
+                            onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const normalized = ((val % 360) + 360) % 360;
+                                onUpdate({ rotation: normalized });
+                            }}
+                            placeholder="0"
+                            style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', outline: 'none' }}
+                        />
+                        <span style={{ color: '#666', fontSize: 11 }}>deg</span>
+                    </label>
                 </div>
             </div>
 
