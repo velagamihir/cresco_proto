@@ -332,49 +332,34 @@ export class SelectTool {
         height: Math.max(1, maxY - minY),
       };
 
-      // Find parent element candidates among other nodes
+      // Candidates to snap against: all other non-selected nodes on canvas
       const otherNodes = sceneGraph
         .getAllNodes()
         .filter((n) => !this.dragState?.initialNodeBounds.has(n.id));
-
-      const selectedCenterX = selectedBounds.x + selectedBounds.width / 2;
-      const selectedCenterY = selectedBounds.y + selectedBounds.height / 2;
-
-      // 1. Shapes that enclose the selection or its center
-      const enclosing = otherNodes.filter(
-        (n) =>
-          n.x <= selectedCenterX &&
-          selectedCenterX <= n.x + n.width &&
-          n.y <= selectedCenterY &&
-          selectedCenterY <= n.y + n.height
-      );
-
-      // Sort by area ascending so the most immediate containing parent is prioritized
-      enclosing.sort((a, b) => a.width * a.height - b.width * b.height);
-
-      let parent = enclosing[0];
-      if (!parent && otherNodes.length > 0) {
-        // Fallback: pick any larger intersecting or adjacent node
-        const larger = otherNodes.filter(
-          (n) => n.width * n.height >= selectedBounds.width * selectedBounds.height
-        );
-        larger.sort((a, b) => a.width * a.height - b.width * b.height);
-        parent = larger[0] || otherNodes[0];
-      }
 
       let snapOffsetX = 0;
       let snapOffsetY = 0;
       this.activeSnapGuides = [];
 
-      if (parent) {
+      if (otherNodes.length > 0) {
         const snapThreshold = 6 / zoom; // 6 screen pixels converted to world space
 
-        // X Targets on parent: Left, Center, Right
-        const parentXTargets = [
-          { pos: parent.x },
-          { pos: parent.x + parent.width / 2 },
-          { pos: parent.x + parent.width },
-        ];
+        // Collect all snap candidate targets across all other elements
+        const candidateXTargets: { pos: number; top: number; bottom: number }[] = [];
+        const candidateYTargets: { pos: number; left: number; right: number }[] = [];
+
+        for (const other of otherNodes) {
+          candidateXTargets.push(
+            { pos: other.x, top: other.y, bottom: other.y + other.height },
+            { pos: other.x + other.width / 2, top: other.y, bottom: other.y + other.height },
+            { pos: other.x + other.width, top: other.y, bottom: other.y + other.height }
+          );
+          candidateYTargets.push(
+            { pos: other.y, left: other.x, right: other.x + other.width },
+            { pos: other.y + other.height / 2, left: other.x, right: other.x + other.width },
+            { pos: other.y + other.height, left: other.x, right: other.x + other.width }
+          );
+        }
 
         // Element X Points: Left, Center, Right
         const elemXPoints = [
@@ -384,15 +369,15 @@ export class SelectTool {
         ];
 
         let bestDiffX = snapThreshold + 1;
-        let bestTargetX: number | null = null;
+        let bestTargetX: { pos: number; top: number; bottom: number } | null = null;
         let bestSnapX = 0;
 
-        for (const target of parentXTargets) {
+        for (const target of candidateXTargets) {
           for (const point of elemXPoints) {
             const diff = Math.abs(point - target.pos);
             if (diff <= snapThreshold && diff < bestDiffX) {
               bestDiffX = diff;
-              bestTargetX = target.pos;
+              bestTargetX = target;
               bestSnapX = target.pos - point;
             }
           }
@@ -402,18 +387,11 @@ export class SelectTool {
           snapOffsetX = bestSnapX;
           this.activeSnapGuides.push({
             orientation: 'vertical',
-            position: bestTargetX,
-            start: Math.min(parent.y, selectedBounds.y) - 20,
-            end: Math.max(parent.y + parent.height, selectedBounds.y + selectedBounds.height) + 20,
+            position: bestTargetX.pos,
+            start: Math.min(bestTargetX.top, selectedBounds.y) - 16,
+            end: Math.max(bestTargetX.bottom, selectedBounds.y + selectedBounds.height) + 16,
           });
         }
-
-        // Y Targets on parent: Top, Center, Bottom
-        const parentYTargets = [
-          { pos: parent.y },
-          { pos: parent.y + parent.height / 2 },
-          { pos: parent.y + parent.height },
-        ];
 
         // Element Y Points: Top, Center, Bottom
         const elemYPoints = [
@@ -423,15 +401,15 @@ export class SelectTool {
         ];
 
         let bestDiffY = snapThreshold + 1;
-        let bestTargetY: number | null = null;
+        let bestTargetY: { pos: number; left: number; right: number } | null = null;
         let bestSnapY = 0;
 
-        for (const target of parentYTargets) {
+        for (const target of candidateYTargets) {
           for (const point of elemYPoints) {
             const diff = Math.abs(point - target.pos);
             if (diff <= snapThreshold && diff < bestDiffY) {
               bestDiffY = diff;
-              bestTargetY = target.pos;
+              bestTargetY = target;
               bestSnapY = target.pos - point;
             }
           }
@@ -441,9 +419,9 @@ export class SelectTool {
           snapOffsetY = bestSnapY;
           this.activeSnapGuides.push({
             orientation: 'horizontal',
-            position: bestTargetY,
-            start: Math.min(parent.x, selectedBounds.x) - 20,
-            end: Math.max(parent.x + parent.width, selectedBounds.x + selectedBounds.width) + 20,
+            position: bestTargetY.pos,
+            start: Math.min(bestTargetY.left, selectedBounds.x) - 16,
+            end: Math.max(bestTargetY.right, selectedBounds.x + selectedBounds.width) + 16,
           });
         }
       }
@@ -537,46 +515,30 @@ export class SelectTool {
         }
       }
 
-      // Snap to parent element during resizing
+      // Snap to any other element during resizing
       const otherNodes = sceneGraph
         .getAllNodes()
         .filter((n) => !this.dragState?.initialNodeBounds.has(n.id));
 
-      const selectedCenterX = newX + newWidth / 2;
-      const selectedCenterY = newY + newHeight / 2;
-
-      const enclosing = otherNodes.filter(
-        (n) =>
-          n.x <= selectedCenterX &&
-          selectedCenterX <= n.x + n.width &&
-          n.y <= selectedCenterY &&
-          selectedCenterY <= n.y + n.height
-      );
-      enclosing.sort((a, b) => a.width * a.height - b.width * b.height);
-
-      let parent = enclosing[0];
-      if (!parent && otherNodes.length > 0) {
-        const larger = otherNodes.filter(
-          (n) => n.width * n.height >= initial.width * initial.height
-        );
-        larger.sort((a, b) => a.width * a.height - b.width * b.height);
-        parent = larger[0] || otherNodes[0];
-      }
-
       this.activeSnapGuides = [];
 
-      if (parent) {
+      if (otherNodes.length > 0) {
         const snapThreshold = 6 / zoom;
-        const parentXTargets = [
-          parent.x,
-          parent.x + parent.width / 2,
-          parent.x + parent.width,
-        ];
-        const parentYTargets = [
-          parent.y,
-          parent.y + parent.height / 2,
-          parent.y + parent.height,
-        ];
+        const candidateXTargets: { pos: number; top: number; bottom: number }[] = [];
+        const candidateYTargets: { pos: number; left: number; right: number }[] = [];
+
+        for (const other of otherNodes) {
+          candidateXTargets.push(
+            { pos: other.x, top: other.y, bottom: other.y + other.height },
+            { pos: other.x + other.width / 2, top: other.y, bottom: other.y + other.height },
+            { pos: other.x + other.width, top: other.y, bottom: other.y + other.height }
+          );
+          candidateYTargets.push(
+            { pos: other.y, left: other.x, right: other.x + other.width },
+            { pos: other.y + other.height / 2, left: other.x, right: other.x + other.width },
+            { pos: other.y + other.height, left: other.x, right: other.x + other.width }
+          );
+        }
 
         // 1. Horizontal edge resizing:
         const isRightMoving = ['br', 'tr', 'r'].includes(handle);
@@ -585,43 +547,43 @@ export class SelectTool {
         if (isRightMoving) {
           const currentRight = newX + newWidth;
           let bestDiff = snapThreshold + 1;
-          let bestTarget: number | null = null;
-          for (const target of parentXTargets) {
-            const diff = Math.abs(currentRight - target);
+          let bestTarget: { pos: number; top: number; bottom: number } | null = null;
+          for (const target of candidateXTargets) {
+            const diff = Math.abs(currentRight - target.pos);
             if (diff <= snapThreshold && diff < bestDiff) {
               bestDiff = diff;
               bestTarget = target;
             }
           }
-          if (bestTarget !== null && bestTarget - newX >= minSize) {
-            newWidth = bestTarget - newX;
+          if (bestTarget !== null && bestTarget.pos - newX >= minSize) {
+            newWidth = bestTarget.pos - newX;
             this.activeSnapGuides.push({
               orientation: 'vertical',
-              position: bestTarget,
-              start: Math.min(parent.y, newY) - 20,
-              end: Math.max(parent.y + parent.height, newY + newHeight) + 20,
+              position: bestTarget.pos,
+              start: Math.min(bestTarget.top, newY) - 16,
+              end: Math.max(bestTarget.bottom, newY + newHeight) + 16,
             });
           }
         } else if (isLeftMoving) {
           const currentLeft = newX;
           let bestDiff = snapThreshold + 1;
-          let bestTarget: number | null = null;
-          for (const target of parentXTargets) {
-            const diff = Math.abs(currentLeft - target);
+          let bestTarget: { pos: number; top: number; bottom: number } | null = null;
+          for (const target of candidateXTargets) {
+            const diff = Math.abs(currentLeft - target.pos);
             if (diff <= snapThreshold && diff < bestDiff) {
               bestDiff = diff;
               bestTarget = target;
             }
           }
           const fixedRight = initial.x + initial.width;
-          if (bestTarget !== null && fixedRight - bestTarget >= minSize) {
-            newX = bestTarget;
-            newWidth = fixedRight - bestTarget;
+          if (bestTarget !== null && fixedRight - bestTarget.pos >= minSize) {
+            newX = bestTarget.pos;
+            newWidth = fixedRight - bestTarget.pos;
             this.activeSnapGuides.push({
               orientation: 'vertical',
-              position: bestTarget,
-              start: Math.min(parent.y, newY) - 20,
-              end: Math.max(parent.y + parent.height, newY + newHeight) + 20,
+              position: bestTarget.pos,
+              start: Math.min(bestTarget.top, newY) - 16,
+              end: Math.max(bestTarget.bottom, newY + newHeight) + 16,
             });
           }
         }
@@ -633,43 +595,43 @@ export class SelectTool {
         if (isBottomMoving) {
           const currentBottom = newY + newHeight;
           let bestDiff = snapThreshold + 1;
-          let bestTarget: number | null = null;
-          for (const target of parentYTargets) {
-            const diff = Math.abs(currentBottom - target);
+          let bestTarget: { pos: number; left: number; right: number } | null = null;
+          for (const target of candidateYTargets) {
+            const diff = Math.abs(currentBottom - target.pos);
             if (diff <= snapThreshold && diff < bestDiff) {
               bestDiff = diff;
               bestTarget = target;
             }
           }
-          if (bestTarget !== null && bestTarget - newY >= minSize) {
-            newHeight = bestTarget - newY;
+          if (bestTarget !== null && bestTarget.pos - newY >= minSize) {
+            newHeight = bestTarget.pos - newY;
             this.activeSnapGuides.push({
               orientation: 'horizontal',
-              position: bestTarget,
-              start: Math.min(parent.x, newX) - 20,
-              end: Math.max(parent.x + parent.width, newX + newWidth) + 20,
+              position: bestTarget.pos,
+              start: Math.min(bestTarget.left, newX) - 16,
+              end: Math.max(bestTarget.right, newX + newWidth) + 16,
             });
           }
         } else if (isTopMoving) {
           const currentTop = newY;
           let bestDiff = snapThreshold + 1;
-          let bestTarget: number | null = null;
-          for (const target of parentYTargets) {
-            const diff = Math.abs(currentTop - target);
+          let bestTarget: { pos: number; left: number; right: number } | null = null;
+          for (const target of candidateYTargets) {
+            const diff = Math.abs(currentTop - target.pos);
             if (diff <= snapThreshold && diff < bestDiff) {
               bestDiff = diff;
               bestTarget = target;
             }
           }
           const fixedBottom = initial.y + initial.height;
-          if (bestTarget !== null && fixedBottom - bestTarget >= minSize) {
-            newY = bestTarget;
-            newHeight = fixedBottom - bestTarget;
+          if (bestTarget !== null && fixedBottom - bestTarget.pos >= minSize) {
+            newY = bestTarget.pos;
+            newHeight = fixedBottom - bestTarget.pos;
             this.activeSnapGuides.push({
               orientation: 'horizontal',
-              position: bestTarget,
-              start: Math.min(parent.x, newX) - 20,
-              end: Math.max(parent.x + parent.width, newX + newWidth) + 20,
+              position: bestTarget.pos,
+              start: Math.min(bestTarget.left, newX) - 16,
+              end: Math.max(bestTarget.right, newX + newWidth) + 16,
             });
           }
         }
