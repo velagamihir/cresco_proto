@@ -1,12 +1,13 @@
 import type { Command } from '../Command';
 import { SceneGraph } from '../../scene/SceneGraph';
+import type { VectorAnchor } from '../../../types/scene';
 
 export interface NodeBounds {
     x: number;
     y: number;
     width: number;
     height: number;
-    anchors?: any[];
+    anchors?: VectorAnchor[];
     x1?: number;
     y1?: number;
     x2?: number;

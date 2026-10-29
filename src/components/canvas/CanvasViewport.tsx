@@ -26,6 +26,106 @@ import type { ToolType } from '../toolbar/Toolbar';
 import { isPointInsideNode } from '../../utils/math';
 import { measureTextLines } from '../../utils/text';
 
+import type { CameraState } from '../../types/camera';
+
+interface TextOverlayProps {
+    textNode: TextNode;
+    cameraState: CameraState;
+    viewportWidth: number;
+    viewportHeight: number;
+    onUpdateText: (newText: string, width: number, height: number) => void;
+    onCommit: () => void;
+}
+
+const TextOverlay: React.FC<TextOverlayProps> = ({
+    textNode,
+    cameraState,
+    viewportWidth,
+    viewportHeight,
+    onUpdateText,
+    onCommit,
+}) => {
+    const zoom = cameraState.zoom;
+    const screenPos = {
+        x: (textNode.x - cameraState.x) * zoom + viewportWidth / 2,
+        y: (textNode.y - cameraState.y) * zoom + viewportHeight / 2,
+    };
+    const scaledFontSize = textNode.fontSize * zoom;
+    const scaledLineHeight = (textNode.lineHeight || 1.25) * scaledFontSize;
+    const widthPx = textNode.autoWidth ? Math.max(60, textNode.width * zoom) : textNode.width * zoom;
+
+    const verticalAlign = textNode.verticalAlign || 'top';
+    const linesCount = (textNode.text || '').split('\n').length;
+    const totalTextHeight = Math.max(scaledLineHeight, linesCount * scaledLineHeight);
+    const currentHeight = Math.max(scaledLineHeight, textNode.height * zoom);
+    const topPadding =
+        verticalAlign === 'middle'
+            ? Math.max(0, (currentHeight - totalTextHeight) / 2)
+            : verticalAlign === 'bottom'
+            ? Math.max(0, currentHeight - totalTextHeight)
+            : 0;
+
+    return (
+        <textarea
+            autoFocus
+            value={textNode.text}
+            placeholder={textNode.autoWidth && !textNode.text ? 'Type text...' : ''}
+            onChange={(e) => {
+                const newText = e.target.value;
+                const metrics = measureTextLines(
+                    newText,
+                    textNode.fontSize,
+                    textNode.fontFamily,
+                    textNode.fontWeight,
+                    textNode.lineHeight || 1.25,
+                    textNode.autoWidth ? undefined : textNode.width
+                );
+                onUpdateText(
+                    newText,
+                    textNode.autoWidth ? metrics.width : textNode.width,
+                    textNode.autoWidth ? metrics.height : textNode.height
+                );
+            }}
+            onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') {
+                    (e.currentTarget as HTMLTextAreaElement).blur();
+                }
+            }}
+            onBlur={onCommit}
+            style={{
+                position: 'absolute',
+                left: `${screenPos.x}px`,
+                top: `${screenPos.y}px`,
+                width: `${widthPx}px`,
+                minWidth: `${Math.max(60, textNode.fontSize * zoom)}px`,
+                height: `${Math.max(scaledLineHeight, textNode.height * zoom)}px`,
+                fontSize: `${scaledFontSize}px`,
+                lineHeight: `${scaledLineHeight}px`,
+                fontFamily: `${textNode.fontFamily}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
+                fontWeight: textNode.fontWeight,
+                textAlign: textNode.textAlign || 'left',
+                color: textNode.fill || '#ffffff',
+                caretColor: '#0d99ff',
+                backgroundColor: 'transparent',
+                border: 'none',
+                outline: 'none',
+                resize: 'none',
+                paddingTop: `${topPadding}px`,
+                paddingBottom: 0,
+                paddingLeft: 0,
+                paddingRight: 0,
+                margin: 0,
+                overflow: 'hidden',
+                whiteSpace: textNode.autoWidth ? 'pre' : 'pre-wrap',
+                wordBreak: 'break-word',
+                boxSizing: 'border-box',
+                zIndex: 25,
+            }}
+        />
+    );
+};
+
 export const CanvasViewport: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const cameraRef = useRef<Camera>(new Camera(window.innerWidth / 2, window.innerHeight / 2, 1));
@@ -44,12 +144,10 @@ export const CanvasViewport: React.FC = () => {
 
     const [activeTool, setActiveTool] = useState<ToolType>('select');
     const activeToolRef = useRef<ToolType>('select');
-    activeToolRef.current = activeTool;
 
     // Inline text editing state
     const [editingTextId, setEditingTextId] = useState<string | null>(null);
     const editingTextIdRef = useRef<string | null>(null);
-    editingTextIdRef.current = editingTextId;
     const editingInitialStateRef = useRef<{ id: string; node: TextNode; isNew: boolean } | null>(null);
 
     const isPanningRef = useRef(false);
@@ -63,15 +161,62 @@ export const CanvasViewport: React.FC = () => {
     // Selection & Node lists
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const selectedIdsRef = useRef<Set<string>>(selectedIds);
-    selectedIdsRef.current = selectedIds;
 
     const [nodesList, setNodesList] = useState<SceneNode[]>([]);
     const [zoomPercent, setZoomPercent] = useState(100);
+    const [cameraState, setCameraState] = useState<CameraState>(() => ({
+        x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
+        y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
+        zoom: 1,
+    }));
+
+    // Sync camera state into React state when camera changes or zoom updates
+    const updateCameraState = useCallback(() => {
+        setCameraState(cameraRef.current.getState());
+        setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
+    }, []);
+
+    // Keep refs in sync inside effects rather than during render
+    useEffect(() => {
+        activeToolRef.current = activeTool;
+    }, [activeTool]);
+
+    useEffect(() => {
+        editingTextIdRef.current = editingTextId;
+    }, [editingTextId]);
+
+    useEffect(() => {
+        selectedIdsRef.current = selectedIds;
+    }, [selectedIds]);
 
     // Sync React list with internal SceneGraph
     const syncNodes = useCallback(() => {
         setNodesList([...sceneGraphRef.current.getAllNodes()]);
     }, []);
+
+    const handleDeleteSelected = useCallback(() => {
+        const idsToDelete = selectedIdsRef.current.size > 0 ? selectedIdsRef.current : selectedIds;
+        if (idsToDelete.size === 0) return;
+
+        const allNodes = sceneGraphRef.current.getAllNodes();
+        const records: DeletedNodeRecord[] = [];
+
+        allNodes.forEach((node, index) => {
+            if (idsToDelete.has(node.id)) {
+                records.push({ node: { ...node }, index });
+            }
+        });
+
+        if (records.length === 0) return;
+
+        const command = new DeleteNodeCommand(
+            sceneGraphRef.current,
+            records,
+            (ids) => setSelectedIds(ids)
+        );
+        historyRef.current.execute(command);
+        syncNodes();
+    }, [selectedIds, syncNodes]);
 
     // Switch tool and finalize pending pen path if switching away
     const handleSelectTool = useCallback((tool: ToolType) => {
@@ -133,8 +278,8 @@ export const CanvasViewport: React.FC = () => {
     const handleResetZoom = useCallback(() => {
         const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         cameraRef.current.resetZoom(center);
-        setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
-    }, []);
+        updateCameraState();
+    }, [updateCameraState]);
 
     // Deselect all selected nodes
     const deselect = useCallback(() => {
@@ -193,6 +338,15 @@ export const CanvasViewport: React.FC = () => {
         syncNodes();
     }, [syncNodes]);
 
+
+    const handleUpdateEditingText = useCallback((id: string, text: string, width: number, height: number) => {
+        sceneGraphRef.current.updateNode(id, {
+            text,
+            width,
+            height,
+        });
+        syncNodes();
+    }, [syncNodes]);
 
     // Subscribe to SceneGraph updates
     useEffect(() => {
@@ -287,7 +441,7 @@ export const CanvasViewport: React.FC = () => {
             const rect = canvas.getBoundingClientRect();
             const focalPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             cameraRef.current.handleWheel(e, focalPoint);
-            setZoomPercent(Math.round(cameraRef.current.getState().zoom * 100));
+            updateCameraState();
         };
 
         const onMouseDown = (e: MouseEvent) => {
@@ -376,6 +530,7 @@ export const CanvasViewport: React.FC = () => {
                 const dy = e.clientY - lastMousePosRef.current.y;
                 lastMousePosRef.current = { x: e.clientX, y: e.clientY };
                 cameraRef.current.pan(dx, dy);
+                updateCameraState();
                 return;
             }
 
@@ -793,7 +948,7 @@ export const CanvasViewport: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [syncNodes, handleResetZoom, deselect, startEditingText, commitEditingText, handleSelectTool]);
+    }, [syncNodes, handleResetZoom, deselect, startEditingText, commitEditingText, handleSelectTool, handleDeleteSelected, handleRedo, handleUndo, updateCameraState]);
 
     // Update cursor dynamically based on active tool
     useEffect(() => {
@@ -825,6 +980,7 @@ export const CanvasViewport: React.FC = () => {
     // Node updates & deletes (derived from nodesList state for real-time reactivity)
     const selectedId = selectedIds.size === 1 ? Array.from(selectedIds)[0] : null;
     const selectedNode = selectedId ? nodesList.find((n) => n.id === selectedId) || null : null;
+    const editingTextNode = editingTextId ? (nodesList.find((n) => n.id === editingTextId) as TextNode | undefined) : undefined;
 
     const handleUpdateSelected = (updates: Partial<SceneNode>) => {
         if (!selectedNode) return;
@@ -842,30 +998,6 @@ export const CanvasViewport: React.FC = () => {
         const command = new DeleteNodeCommand(
             sceneGraphRef.current,
             [{ node: { ...node }, index }],
-            (ids) => setSelectedIds(ids)
-        );
-        historyRef.current.execute(command);
-        syncNodes();
-    };
-
-    const handleDeleteSelected = () => {
-        const idsToDelete = selectedIdsRef.current.size > 0 ? selectedIdsRef.current : selectedIds;
-        if (idsToDelete.size === 0) return;
-
-        const allNodes = sceneGraphRef.current.getAllNodes();
-        const records: DeletedNodeRecord[] = [];
-
-        allNodes.forEach((node, index) => {
-            if (idsToDelete.has(node.id)) {
-                records.push({ node: { ...node }, index });
-            }
-        });
-
-        if (records.length === 0) return;
-
-        const command = new DeleteNodeCommand(
-            sceneGraphRef.current,
-            records,
             (ids) => setSelectedIds(ids)
         );
         historyRef.current.execute(command);
@@ -1121,87 +1253,18 @@ export const CanvasViewport: React.FC = () => {
             <canvas ref={canvasRef} style={{ display: 'block' }} />
 
             {/* Inline Text Editing Overlay (Figma style) */}
-            {editingTextId && (() => {
-                const textNode = nodesList.find((n) => n.id === editingTextId) as TextNode | undefined;
-                if (!textNode) return null;
-
-                const zoom = cameraRef.current.getState().zoom;
-                const screenPos = cameraRef.current.toScreen({ x: textNode.x, y: textNode.y });
-                const scaledFontSize = textNode.fontSize * zoom;
-                const scaledLineHeight = (textNode.lineHeight || 1.25) * scaledFontSize;
-                const widthPx = textNode.autoWidth ? Math.max(60, textNode.width * zoom) : textNode.width * zoom;
-
-                const verticalAlign = textNode.verticalAlign || 'top';
-                const linesCount = (textNode.text || '').split('\n').length;
-                const totalTextHeight = Math.max(scaledLineHeight, linesCount * scaledLineHeight);
-                const currentHeight = Math.max(scaledLineHeight, textNode.height * zoom);
-                const topPadding = verticalAlign === 'middle'
-                    ? Math.max(0, (currentHeight - totalTextHeight) / 2)
-                    : verticalAlign === 'bottom'
-                    ? Math.max(0, currentHeight - totalTextHeight)
-                    : 0;
-
-                return (
-                    <textarea
-                        autoFocus
-                        value={textNode.text}
-                        placeholder={textNode.autoWidth && !textNode.text ? 'Type text...' : ''}
-                        onChange={(e) => {
-                            const newText = e.target.value;
-                            const metrics = measureTextLines(
-                                newText,
-                                textNode.fontSize,
-                                textNode.fontFamily,
-                                textNode.fontWeight,
-                                textNode.lineHeight || 1.25,
-                                textNode.autoWidth ? undefined : textNode.width
-                            );
-                            sceneGraphRef.current.updateNode(textNode.id, {
-                                text: newText,
-                                width: textNode.autoWidth ? metrics.width : textNode.width,
-                                height: textNode.autoWidth ? metrics.height : textNode.height,
-                            });
-                            syncNodes();
-                        }}
-                        onKeyDown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Escape') {
-                                (e.currentTarget as HTMLTextAreaElement).blur();
-                            }
-                        }}
-                        onBlur={commitEditingText}
-                        style={{
-                            position: 'absolute',
-                            left: `${screenPos.x}px`,
-                            top: `${screenPos.y}px`,
-                            width: `${widthPx}px`,
-                            minWidth: `${Math.max(60, textNode.fontSize * zoom)}px`,
-                            height: `${Math.max(scaledLineHeight, textNode.height * zoom)}px`,
-                            fontSize: `${scaledFontSize}px`,
-                            lineHeight: `${scaledLineHeight}px`,
-                            fontFamily: `${textNode.fontFamily}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
-                            fontWeight: textNode.fontWeight,
-                            textAlign: textNode.textAlign || 'left',
-                            color: textNode.fill || '#ffffff',
-                            caretColor: '#0d99ff',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            outline: 'none',
-                            resize: 'none',
-                            paddingTop: `${topPadding}px`,
-                            paddingBottom: 0,
-                            paddingLeft: 0,
-                            paddingRight: 0,
-                            margin: 0,
-                            overflow: 'hidden',
-                            whiteSpace: textNode.autoWidth ? 'pre' : 'pre-wrap',
-                            wordBreak: 'break-word',
-                            boxSizing: 'border-box',
-                            zIndex: 25,
-                        }}
-                    />
-                );
-            })()}
+            {editingTextNode && (
+                <TextOverlay
+                    textNode={editingTextNode}
+                    cameraState={cameraState}
+                    viewportWidth={window.innerWidth}
+                    viewportHeight={window.innerHeight}
+                    onUpdateText={(newText, width, height) => {
+                        handleUpdateEditingText(editingTextNode.id, newText, width, height);
+                    }}
+                    onCommit={commitEditingText}
+                />
+            )}
 
             {/* Zoom indicator / Reset zoom button */}
             <button

@@ -105,7 +105,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
         // In reversedNodes:
         // 'above' target in the UI means HIGHER z-index in nodes array (so after target in nodes)
         // 'below' target in the UI means LOWER z-index in nodes array (so before target in nodes)
-        let newTargetIndex = targetIndex;
+        let newTargetIndex: number;
         if (dropPosition === 'above') {
             // Placing above target in reversed list -> targetIndex + 1 in nodes array
             newTargetIndex = sourceIndex < targetIndex ? targetIndex : targetIndex + 1;

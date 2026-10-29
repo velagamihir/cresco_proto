@@ -78,7 +78,7 @@ export class FrameTool {
         if (!this.isDrawing || !this.activeFrameId) return;
 
         const node = sceneGraph.getNode(this.activeFrameId) as FrameNode | undefined;
-        let finalId: string | null = this.activeFrameId;
+        const finalId: string | null = this.activeFrameId;
 
         if (node) {
             if (node.width < 5 && node.height < 5) {
