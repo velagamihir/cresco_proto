@@ -20,6 +20,14 @@ export interface LayerBlurEffect {
 
 export type LayerEffect = DropShadowEffect | LayerBlurEffect;
 
+export type HorizontalConstraint = 'left' | 'right' | 'left-right' | 'center' | 'scale';
+export type VerticalConstraint = 'top' | 'bottom' | 'top-bottom' | 'center' | 'scale';
+
+export interface Constraints {
+    horizontal: HorizontalConstraint;
+    vertical: VerticalConstraint;
+}
+
 export interface BaseNode {
     id: string;
     type: NodeType;
@@ -35,6 +43,7 @@ export interface BaseNode {
     rotation?: number; // In degrees (-180 to 180 or 0 to 360)
     opacity?: number; // 0 to 1
     effects?: LayerEffect[];
+    constraints?: Constraints;
 }
 
 export interface RectangleNode extends BaseNode {

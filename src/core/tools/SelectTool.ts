@@ -1,6 +1,7 @@
 import type { Point } from '../../types/camera';
 import type { PathNode, VectorAnchor, LineNode } from '../../types/scene';
 import { SceneGraph } from '../scene/SceneGraph';
+import { ConstraintsEngine } from '../engine/ConstraintsEngine';
 import {
   isPointInsideNode,
   hitTestResizeHandles,
@@ -132,6 +133,26 @@ export class SelectTool {
               initialNodeBounds: initialMap,
             };
           } else {
+            // If resizing a frame, capture initial bounds of its children for constraint recalculation
+            if (node.type === 'frame') {
+              for (const child of sceneGraph.getAllNodes()) {
+                if (child.parentId === node.id) {
+                  initialMap.set(child.id, {
+                    x: child.x,
+                    y: child.y,
+                    width: child.width,
+                    height: child.height,
+                    rotation: child.rotation || 0,
+                    anchors: child.type === 'path' ? JSON.parse(JSON.stringify((child as PathNode).anchors)) : undefined,
+                    x1: child.type === 'line' ? (child as LineNode).x1 : undefined,
+                    y1: child.type === 'line' ? (child as LineNode).y1 : undefined,
+                    x2: child.type === 'line' ? (child as LineNode).x2 : undefined,
+                    y2: child.type === 'line' ? (child as LineNode).y2 : undefined,
+                  });
+                }
+              }
+            }
+
             this.dragState = {
               mode: 'resize',
               resizeHandle: hitHandle,
@@ -684,6 +705,36 @@ export class SelectTool {
           width: newWidth,
           height: newHeight,
         });
+      }
+
+      // If the resized node is a Frame, adjust its children based on their Constraints
+      if (node && node.type === 'frame') {
+        const initialParent = {
+          x: initial.x,
+          y: initial.y,
+          width: initial.width,
+          height: initial.height,
+        };
+        const currentParent = {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+        };
+
+        for (const [childId, initialChild] of this.dragState.initialNodeBounds.entries()) {
+          if (childId === id) continue;
+          const childNode = sceneGraph.getNode(childId);
+          if (childNode && childNode.parentId === id) {
+            const nextBounds = ConstraintsEngine.calculateChildBounds(
+              childNode,
+              initialChild,
+              initialParent,
+              currentParent
+            );
+            sceneGraph.updateNode(childId, nextBounds);
+          }
+        }
       }
     }
   }

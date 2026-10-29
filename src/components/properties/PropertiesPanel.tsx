@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { SceneNode, FrameNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
+import type { SceneNode, FrameNode, TextNode, PathNode, LineNode, MarkerType, HorizontalConstraint, VerticalConstraint } from '../../types/scene';
 import { DEVICE_PRESETS, type DevicePreset } from '../../types/presets';
 import type { ToolType } from '../toolbar/Toolbar';
 import {
@@ -15,11 +15,20 @@ import {
     AlignVerticalJustifyStart,
     AlignVerticalJustifyCenter,
     AlignVerticalJustifyEnd,
+    AlignStartHorizontal,
+    AlignCenterHorizontal,
+    AlignEndHorizontal,
+    AlignStartVertical,
+    AlignCenterVertical,
+    AlignEndVertical,
+    AlignHorizontalSpaceBetween,
+    AlignVerticalSpaceBetween,
     Download,
     Plus,
     Eye,
     EyeOff,
 } from 'lucide-react';
+import type { AlignmentType, DistributionType } from '../../core/engine/AlignmentEngine';
 import { measureTextLines } from '../../utils/text';
 import { ExportEngine, type ExportFormat } from '../../core/engine/ExportEngine';
 
@@ -29,6 +38,8 @@ interface PropertiesPanelProps {
     allNodes?: SceneNode[];
     onUpdate: (updates: Partial<SceneNode>) => void;
     onDelete: () => void;
+    onAlign?: (alignment: AlignmentType) => void;
+    onDistribute?: (distribution: DistributionType) => void;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
     onBringToFront?: () => void;
@@ -44,6 +55,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     allNodes = [],
     onUpdate,
     onDelete,
+    onAlign,
+    onDistribute,
     onMoveUp,
     onMoveDown,
     onBringToFront,
@@ -206,7 +219,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
-                    {selectedNode.type === 'path'
+                    {selectedNodes.length > 1
+                        ? `${selectedNodes.length} Layers Selected`
+                        : selectedNode.type === 'path'
                         ? 'Vector'
                         : selectedNode.type === 'line'
                         ? ((selectedNode as LineNode).endMarker === 'arrow' ? 'Arrow' : 'Line')
@@ -384,6 +399,102 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
             <hr style={{ borderColor: '#333333', borderTop: 'none' }} />
 
+            {/* Figma-style Alignment Bar (when multiple items or an item inside a parent frame is selected) */}
+            {selectedNodes.length >= 2 && onAlign && (
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1e1e1e', padding: '3px 4px', borderRadius: 4, border: '1px solid #333' }}>
+                        <button
+                            type="button"
+                            title="Align Left (Option+A)"
+                            onClick={() => onAlign('left')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignStartHorizontal size={14} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Align Horizontal Center (Option+H)"
+                            onClick={() => onAlign('center-horizontal')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignCenterHorizontal size={14} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Align Right (Option+D)"
+                            onClick={() => onAlign('right')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignEndHorizontal size={14} />
+                        </button>
+                        <div style={{ width: 1, height: 14, background: '#383838', margin: '0 1px' }} />
+                        <button
+                            type="button"
+                            title="Align Top (Option+W)"
+                            onClick={() => onAlign('top')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignStartVertical size={14} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Align Vertical Center (Option+V)"
+                            onClick={() => onAlign('center-vertical')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignCenterVertical size={14} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Align Bottom (Option+S)"
+                            onClick={() => onAlign('bottom')}
+                            style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                        >
+                            <AlignEndVertical size={14} />
+                        </button>
+
+                        {/* Distribution buttons if 3 or more items are selected */}
+                        {selectedNodes.length >= 3 && onDistribute && (
+                            <>
+                                <div style={{ width: 1, height: 14, background: '#383838', margin: '0 1px' }} />
+                                <button
+                                    type="button"
+                                    title="Distribute Horizontal Spacing"
+                                    onClick={() => onDistribute('horizontal')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                                >
+                                    <AlignHorizontalSpaceBetween size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    title="Distribute Vertical Spacing"
+                                    onClick={() => onDistribute('vertical')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#333'; e.currentTarget.style.color = '#fff'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ccc'; }}
+                                >
+                                    <AlignVerticalSpaceBetween size={14} />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Position & Size Grid */}
             <div>
                 <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Layout</div>
@@ -450,6 +561,132 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <span style={{ color: '#666', fontSize: 11 }}>deg</span>
                     </label>
                 </div>
+
+                {/* Constraints (Visible when selected node is inside a frame) */}
+                {selectedNode.parentId && (() => {
+                    const parent = allNodes.find((n) => n.id === selectedNode.parentId);
+                    if (parent && parent.type === 'frame') {
+                        const currentConstraints = selectedNode.constraints || { horizontal: 'left', vertical: 'top' };
+                        return (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #333' }}>
+                                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa' }}>Constraints</div>
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                    {/* Visual 3x3 Pin Diagram */}
+                                    <div
+                                        style={{
+                                            width: 52,
+                                            height: 52,
+                                            background: '#1e1e1e',
+                                            border: '1px solid #383838',
+                                            borderRadius: 4,
+                                            position: 'relative',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        {/* Center child mockup */}
+                                        <div
+                                            style={{
+                                                width: 20,
+                                                height: 20,
+                                                background: '#2b2b2b',
+                                                border: '1px dashed #555',
+                                                borderRadius: 2,
+                                            }}
+                                        />
+
+                                        {/* Active constraint pin indicator lines */}
+                                        {/* Top Pin */}
+                                        {(currentConstraints.vertical === 'top' || currentConstraints.vertical === 'top-bottom') && (
+                                            <div style={{ position: 'absolute', top: 3, width: 2, height: 13, background: '#0d99ff' }} />
+                                        )}
+                                        {/* Bottom Pin */}
+                                        {(currentConstraints.vertical === 'bottom' || currentConstraints.vertical === 'top-bottom') && (
+                                            <div style={{ position: 'absolute', bottom: 3, width: 2, height: 13, background: '#0d99ff' }} />
+                                        )}
+                                        {/* Left Pin */}
+                                        {(currentConstraints.horizontal === 'left' || currentConstraints.horizontal === 'left-right') && (
+                                            <div style={{ position: 'absolute', left: 3, height: 2, width: 13, background: '#0d99ff' }} />
+                                        )}
+                                        {/* Right Pin */}
+                                        {(currentConstraints.horizontal === 'right' || currentConstraints.horizontal === 'left-right') && (
+                                            <div style={{ position: 'absolute', right: 3, height: 2, width: 13, background: '#0d99ff' }} />
+                                        )}
+                                        {/* Center Crosshairs */}
+                                        {currentConstraints.horizontal === 'center' && (
+                                            <div style={{ position: 'absolute', width: 28, height: 1, background: '#0d99ff', opacity: 0.8 }} />
+                                        )}
+                                        {currentConstraints.vertical === 'center' && (
+                                            <div style={{ position: 'absolute', height: 28, width: 1, background: '#0d99ff', opacity: 0.8 }} />
+                                        )}
+                                    </div>
+
+                                    {/* Select Dropdowns */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                                        <select
+                                            value={currentConstraints.horizontal}
+                                            onChange={(e) => {
+                                                onUpdate({
+                                                    constraints: {
+                                                        ...currentConstraints,
+                                                        horizontal: e.target.value as HorizontalConstraint,
+                                                    },
+                                                });
+                                            }}
+                                            style={{
+                                                background: '#1e1e1e',
+                                                border: '1px solid #333',
+                                                color: '#fff',
+                                                padding: '4px 6px',
+                                                borderRadius: 4,
+                                                fontSize: 11,
+                                                outline: 'none',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <option value="left">Left</option>
+                                            <option value="right">Right</option>
+                                            <option value="left-right">Left & Right</option>
+                                            <option value="center">Center</option>
+                                            <option value="scale">Scale</option>
+                                        </select>
+
+                                        <select
+                                            value={currentConstraints.vertical}
+                                            onChange={(e) => {
+                                                onUpdate({
+                                                    constraints: {
+                                                        ...currentConstraints,
+                                                        vertical: e.target.value as VerticalConstraint,
+                                                    },
+                                                });
+                                            }}
+                                            style={{
+                                                background: '#1e1e1e',
+                                                border: '1px solid #333',
+                                                color: '#fff',
+                                                padding: '4px 6px',
+                                                borderRadius: 4,
+                                                fontSize: 11,
+                                                outline: 'none',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <option value="top">Top</option>
+                                            <option value="bottom">Bottom</option>
+                                            <option value="top-bottom">Top & Bottom</option>
+                                            <option value="center">Center</option>
+                                            <option value="scale">Scale</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
             </div>
 
             {/* Frame Properties */}

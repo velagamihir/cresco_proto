@@ -10,6 +10,7 @@ import { TextTool } from '../../core/tools/TextTool';
 import { PenTool } from '../../core/tools/PenTool';
 import { LineTool } from '../../core/tools/LineTool';
 import { FrameTool } from '../../core/tools/FrameTool';
+import { AlignmentEngine, type AlignmentType, type DistributionType } from '../../core/engine/AlignmentEngine';
 import type { DevicePreset } from '../../types/presets';
 import { HistoryManager } from '../../core/history/HistoryManager';
 import { CreateNodeCommand } from '../../core/history/commands/CreateNodeCommand';
@@ -943,6 +944,49 @@ export const CanvasViewport: React.FC = () => {
                 syncNodes();
             }
 
+            // Figma Alignment & Distribution Keyboard Shortcuts (Alt / Option + key)
+            if (e.altKey && selectedIdsRef.current.size >= 2) {
+                const keyLower = e.key.toLowerCase();
+                if (keyLower === 'a') {
+                    e.preventDefault();
+                    handleAlignSelected('left');
+                    return;
+                }
+                if (keyLower === 'h') {
+                    e.preventDefault();
+                    if (e.shiftKey && selectedIdsRef.current.size >= 3) {
+                        handleDistributeSelected('horizontal');
+                    } else {
+                        handleAlignSelected('center-horizontal');
+                    }
+                    return;
+                }
+                if (keyLower === 'd') {
+                    e.preventDefault();
+                    handleAlignSelected('right');
+                    return;
+                }
+                if (keyLower === 'w') {
+                    e.preventDefault();
+                    handleAlignSelected('top');
+                    return;
+                }
+                if (keyLower === 'v') {
+                    e.preventDefault();
+                    if (e.shiftKey && selectedIdsRef.current.size >= 3) {
+                        handleDistributeSelected('vertical');
+                    } else {
+                        handleAlignSelected('center-vertical');
+                    }
+                    return;
+                }
+                if (keyLower === 's') {
+                    e.preventDefault();
+                    handleAlignSelected('bottom');
+                    return;
+                }
+            }
+
 
             if ((e.metaKey || e.ctrlKey) && e.key === '0') {
                 e.preventDefault();
@@ -1078,6 +1122,56 @@ export const CanvasViewport: React.FC = () => {
         historyRef.current.execute(command);
         syncNodes();
     };
+
+    const handleAlignSelected = useCallback((alignment: AlignmentType) => {
+        const currentSelectedNodes = sceneGraphRef.current
+            .getAllNodes()
+            .filter((n) => selectedIdsRef.current.has(n.id));
+
+        if (currentSelectedNodes.length < 2) return;
+
+        const records = AlignmentEngine.alignNodes(
+            sceneGraphRef.current,
+            currentSelectedNodes,
+            alignment
+        );
+
+        if (records.length > 0) {
+            historyRef.current.push(
+                new TransformNodeCommand(
+                    sceneGraphRef.current,
+                    records,
+                    (ids) => setSelectedIds(ids)
+                )
+            );
+            syncNodes();
+        }
+    }, [syncNodes]);
+
+    const handleDistributeSelected = useCallback((distribution: DistributionType) => {
+        const currentSelectedNodes = sceneGraphRef.current
+            .getAllNodes()
+            .filter((n) => selectedIdsRef.current.has(n.id));
+
+        if (currentSelectedNodes.length < 3) return;
+
+        const records = AlignmentEngine.distributeNodes(
+            sceneGraphRef.current,
+            currentSelectedNodes,
+            distribution
+        );
+
+        if (records.length > 0) {
+            historyRef.current.push(
+                new TransformNodeCommand(
+                    sceneGraphRef.current,
+                    records,
+                    (ids) => setSelectedIds(ids)
+                )
+            );
+            syncNodes();
+        }
+    }, [syncNodes]);
 
 
     return (
@@ -1288,6 +1382,8 @@ export const CanvasViewport: React.FC = () => {
                         }
                     }}
                     onToggleCollapse={() => setShowRightSidebar(false)}
+                    onAlign={handleAlignSelected}
+                    onDistribute={handleDistributeSelected}
                     activeTool={activeTool}
                     onInsertPreset={handleInsertPreset}
                 />

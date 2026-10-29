@@ -31,7 +31,7 @@ This document outlines the core architecture and feature requirements needed to 
 
 ## 2. Layout, Framing & Hierarchy
 
-- [ ] **Responsive Constraints**
+- [x] **Responsive Constraints**
   - Pinning layers relative to parent frames: Left, Right, Left & Right, Center, Scale, Top, Bottom, Top & Bottom.
 - [ ] **Nested Hierarchy & Canvas Parenting**
   - Deep nested container hierarchy with drag-and-drop layer reparenting into frames.
