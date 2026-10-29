@@ -36,7 +36,7 @@ This document outlines the core architecture and feature requirements needed to 
 - [ ] **Nested Hierarchy & Canvas Parenting**
   - Deep nested container hierarchy with drag-and-drop layer reparenting into frames.
   - Frame clipping (`clipContent: boolean`) with independent coordinate spaces.
-- [ ] **Multi-Selection & Alignment Tools**
+- [x] **Multi-Selection & Alignment Tools**
   - Marquee drag selection and `Shift + Click` multi-select.
   - Alignment actions: Align Left, Horizontal Center, Right, Top, Vertical Center, Bottom.
   - Distribution actions: Distribute Horizontal Spacing, Distribute Vertical Spacing, and Tidy Up / Grid packing.
