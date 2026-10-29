@@ -446,6 +446,9 @@ export const CanvasViewport: React.FC = () => {
         };
 
         const onMouseDown = (e: MouseEvent) => {
+            // Prevent default browser drag-and-drop / text-selection behavior (crucial in Firefox)
+            e.preventDefault();
+
             const rect = canvas.getBoundingClientRect();
             const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             const worldPoint = cameraRef.current.toWorld(screenPoint);
@@ -1257,7 +1260,15 @@ export const CanvasViewport: React.FC = () => {
             )}
 
             {/* Canvas */}
-            <canvas ref={canvasRef} style={{ display: 'block' }} />
+            <canvas
+                ref={canvasRef}
+                style={{
+                    display: 'block',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    touchAction: 'none',
+                }}
+            />
 
             {/* Inline Text Editing Overlay (Figma style) */}
             {editingTextNode && (
