@@ -4,14 +4,23 @@ import { SceneGraph } from '../scene/SceneGraph';
 import {
   isPointInsideNode,
   hitTestResizeHandles,
+  doBoxesIntersect,
 } from '../../utils/math';
 import type { ResizeHandleType } from '../../utils/math';
 import type { SnapGuide } from '../engine/Renderer';
 
+export interface MarqueeBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface DragState {
-  mode: 'move' | 'resize';
+  mode: 'move' | 'resize' | 'marquee';
   resizeHandle?: ResizeHandleType;
   dragStartWorld: Point;
+  initialSelectedIds?: Set<string>;
   initialNodeBounds: Map<
     string,
     {
@@ -32,9 +41,14 @@ export class SelectTool {
   private dragState: DragState | null = null;
   private hoveredHandle: ResizeHandleType | null = null;
   private activeSnapGuides: SnapGuide[] = [];
+  private currentMarquee: MarqueeBox | null = null;
 
   public getSnapGuides(): SnapGuide[] {
     return this.activeSnapGuides;
+  }
+
+  public getMarqueeBox(): MarqueeBox | null {
+    return this.currentMarquee;
   }
 
   public getHoveredHandle(): ResizeHandleType | null {
@@ -72,16 +86,17 @@ export class SelectTool {
   }
 
   /**
-   * Pointer Down: Check handles/edges first, then nodes.
+   * Pointer Down: Check handles/edges first, then nodes, or start marquee on empty canvas.
    */
   public onPointerDown(
     worldPoint: Point,
     sceneGraph: SceneGraph,
     selectedIds: Set<string>,
     setSelectedIds: (ids: Set<string>) => void,
-    zoom: number
+    zoom: number,
+    isShiftPressed: boolean = false
   ): boolean {
-    // 1. Check if clicking on an active resize handle or edge
+    // 1. Check if clicking on an active resize handle or edge (single selected shape)
     if (selectedIds.size === 1) {
       const selectedId = Array.from(selectedIds)[0];
       const node = sceneGraph.getNode(selectedId);
@@ -126,10 +141,29 @@ export class SelectTool {
     }
 
     if (hitId) {
-      const nextSelection = selectedIds.has(hitId)
-        ? selectedIds
-        : new Set([hitId]);
+      let nextSelection: Set<string>;
+      if (isShiftPressed) {
+        // Toggle item into/out of selection
+        nextSelection = new Set(selectedIds);
+        if (nextSelection.has(hitId)) {
+          nextSelection.delete(hitId);
+        } else {
+          nextSelection.add(hitId);
+        }
+      } else {
+        // If clicking an already selected node in a multi-selection, preserve group for dragging
+        nextSelection = selectedIds.has(hitId)
+          ? selectedIds
+          : new Set([hitId]);
+      }
+
       setSelectedIds(nextSelection);
+
+      // If selection is empty after shift-unselecting, exit
+      if (nextSelection.size === 0) {
+        this.dragState = null;
+        return true;
+      }
 
       const initialMap = new Map();
       for (const id of nextSelection) {
@@ -166,17 +200,61 @@ export class SelectTool {
       return true;
     }
 
-    // 3. Clicked empty space
-    setSelectedIds(new Set());
-    this.dragState = null;
+    // 3. Clicked empty space -> start Marquee Selection
+    const baseSelection = isShiftPressed ? new Set(selectedIds) : new Set<string>();
+    if (!isShiftPressed) {
+      setSelectedIds(new Set());
+    }
+
+    this.dragState = {
+      mode: 'marquee',
+      dragStartWorld: { ...worldPoint },
+      initialSelectedIds: baseSelection,
+      initialNodeBounds: new Map(),
+    };
+    this.currentMarquee = {
+      x: worldPoint.x,
+      y: worldPoint.y,
+      width: 0,
+      height: 0,
+    };
     return false;
   }
 
   /**
-   * Pointer Move: Execute move or resize computation with snap-to-parent.
+   * Pointer Move: Execute move, resize, or marquee selection.
    */
-  public onPointerMove(worldPoint: Point, sceneGraph: SceneGraph, zoom: number = 1): void {
+  public onPointerMove(
+    worldPoint: Point,
+    sceneGraph: SceneGraph,
+    zoom: number = 1,
+    setSelectedIds?: (ids: Set<string>) => void
+  ): void {
     if (!this.dragState) return;
+
+    if (this.dragState.mode === 'marquee') {
+      const start = this.dragState.dragStartWorld;
+      const x = Math.min(start.x, worldPoint.x);
+      const y = Math.min(start.y, worldPoint.y);
+      const width = Math.abs(worldPoint.x - start.x);
+      const height = Math.abs(worldPoint.y - start.y);
+
+      this.currentMarquee = { x, y, width, height };
+
+      if (setSelectedIds) {
+        const matchingIds = new Set<string>(this.dragState.initialSelectedIds || []);
+        const allNodes = sceneGraph.getAllNodes();
+
+        for (const node of allNodes) {
+          // If node has a parent, let the user select it directly or via its frame
+          if (doBoxesIntersect({ x, y, width, height }, node)) {
+            matchingIds.add(node.id);
+          }
+        }
+        setSelectedIds(matchingIds);
+      }
+      return;
+    }
 
     const deltaX = worldPoint.x - this.dragState.dragStartWorld.x;
     const deltaY = worldPoint.y - this.dragState.dragStartWorld.y;
@@ -671,6 +749,7 @@ export class SelectTool {
     }
 
     this.dragState = null;
+    this.currentMarquee = null;
     this.activeSnapGuides = [];
     return changes;
   }

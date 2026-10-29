@@ -253,3 +253,56 @@ export function hitTestResizeHandles(
 
     return null;
 }
+
+/**
+ * Checks whether two axis-aligned bounding boxes intersect.
+ */
+export function doBoxesIntersect(
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number }
+): boolean {
+    const aMinX = Math.min(a.x, a.x + a.width);
+    const aMaxX = Math.max(a.x, a.x + a.width);
+    const aMinY = Math.min(a.y, a.y + a.height);
+    const aMaxY = Math.max(a.y, a.y + a.height);
+
+    const bMinX = Math.min(b.x, b.x + b.width);
+    const bMaxX = Math.max(b.x, b.x + b.width);
+    const bMinY = Math.min(b.y, b.y + b.height);
+    const bMaxY = Math.max(b.y, b.y + b.height);
+
+    return aMinX <= bMaxX && aMaxX >= bMinX && aMinY <= bMaxY && aMaxY >= bMinY;
+}
+
+/**
+ * Computes the unified bounding box that encloses a collection of bounds.
+ */
+export function getBoundingBox(
+    boundsList: { x: number; y: number; width: number; height: number }[]
+): { x: number; y: number; width: number; height: number } | null {
+    if (boundsList.length === 0) return null;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const b of boundsList) {
+        const x1 = Math.min(b.x, b.x + b.width);
+        const x2 = Math.max(b.x, b.x + b.width);
+        const y1 = Math.min(b.y, b.y + b.height);
+        const y2 = Math.max(b.y, b.y + b.height);
+
+        minX = Math.min(minX, x1);
+        minY = Math.min(minY, y1);
+        maxX = Math.max(maxX, x2);
+        maxY = Math.max(maxY, y2);
+    }
+
+    return {
+        x: minX,
+        y: minY,
+        width: Math.max(0, maxX - minX),
+        height: Math.max(0, maxY - minY),
+    };
+}

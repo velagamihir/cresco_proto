@@ -410,7 +410,8 @@ export const CanvasViewport: React.FC = () => {
                 selectedIdsRef.current,
                 cameraRef.current.getState().zoom,
                 editingTextIdRef.current,
-                selectToolRef.current.getSnapGuides()
+                selectToolRef.current.getSnapGuides(),
+                selectToolRef.current.getMarqueeBox()
             );
             Renderer.renderPenPreview(
                 ctx,
@@ -469,7 +470,8 @@ export const CanvasViewport: React.FC = () => {
                         sceneGraphRef.current,
                         selectedIdsRef.current,
                         (newSelected) => setSelectedIds(newSelected),
-                        currentZoom
+                        currentZoom,
+                        e.shiftKey
                     );
                 } else if (activeToolRef.current === 'rectangle') {
                     rectToolRef.current.onPointerDown(worldPoint, sceneGraphRef.current, (id) => {
@@ -535,7 +537,12 @@ export const CanvasViewport: React.FC = () => {
             }
 
             if (activeToolRef.current === 'select') {
-                selectToolRef.current.onPointerMove(worldPoint, sceneGraphRef.current, currentZoom);
+                selectToolRef.current.onPointerMove(
+                    worldPoint,
+                    sceneGraphRef.current,
+                    currentZoom,
+                    (newSelected) => setSelectedIds(newSelected)
+                );
                 if (!isSpacePressedRef.current) {
                     const hoveredHandle = selectToolRef.current.onPointerHover(
                         worldPoint,

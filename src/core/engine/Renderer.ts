@@ -1,6 +1,7 @@
 import type { SceneNode, RectangleNode, EllipseNode, FrameNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
 import type { PenDrawingState } from '../tools/PenTool';
-import { getResizeHandles } from '../../utils/math';
+import type { MarqueeBox } from '../tools/SelectTool';
+import { getResizeHandles, getBoundingBox } from '../../utils/math';
 import { getFontString, measureTextLines } from '../../utils/text';
 
 export interface SnapGuide {
@@ -17,7 +18,8 @@ export class Renderer {
     selectedIds: Set<string>,
     zoom: number,
     editingNodeId?: string | null,
-    snapGuides?: SnapGuide[]
+    snapGuides?: SnapGuide[],
+    marqueeBox?: MarqueeBox | null
   ): void {
     // Map frame children
     const childMap = new Map<string, SceneNode[]>();
@@ -44,13 +46,31 @@ export class Renderer {
     }
 
     // 2. Render Selection Bounding Box & Handles for active nodes
-    for (const node of nodes) {
-      if (selectedIds.has(node.id)) {
-        this.renderSelectionOutline(ctx, node, zoom);
+    if (selectedIds.size === 1) {
+      for (const node of nodes) {
+        if (selectedIds.has(node.id)) {
+          this.renderSelectionOutline(ctx, node, zoom);
+        }
+      }
+    } else if (selectedIds.size > 1) {
+      // Figma multi-selection: render light borders around individual items, plus composite group bounds
+      const selectedNodes = nodes.filter((n) => selectedIds.has(n.id));
+      for (const node of selectedNodes) {
+        this.renderSubtleSelectionOutline(ctx, node, zoom);
+      }
+
+      const compositeBox = getBoundingBox(selectedNodes);
+      if (compositeBox) {
+        this.renderCompositeSelectionOutline(ctx, compositeBox, zoom);
       }
     }
 
-    // 3. Render Snap Guides (Figma smart guides in magenta)
+    // 3. Render Marquee Drag Box (Figma blue selection area)
+    if (marqueeBox && marqueeBox.width > 0 && marqueeBox.height > 0) {
+      this.renderMarquee(ctx, marqueeBox, zoom);
+    }
+
+    // 4. Render Snap Guides (Figma smart guides in magenta)
     if (snapGuides && snapGuides.length > 0) {
       ctx.save();
       ctx.strokeStyle = '#ea3671'; // Figma magenta smart guide color
@@ -303,6 +323,75 @@ export class Renderer {
       );
     }
 
+    ctx.restore();
+  }
+
+  private static renderSubtleSelectionOutline(
+    ctx: CanvasRenderingContext2D,
+    node: SceneNode,
+    zoom: number
+  ): void {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(13, 153, 255, 0.65)';
+    ctx.lineWidth = 1 / zoom;
+    ctx.strokeRect(node.x, node.y, node.width, node.height);
+    ctx.restore();
+  }
+
+  private static renderCompositeSelectionOutline(
+    ctx: CanvasRenderingContext2D,
+    box: { x: number; y: number; width: number; height: number },
+    zoom: number
+  ): void {
+    ctx.save();
+    const strokeWidth = 1.5 / zoom;
+    const handleSize = 7 / zoom;
+
+    // Group bounding box outline
+    ctx.strokeStyle = '#0d99ff';
+    ctx.lineWidth = strokeWidth;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    // 4 Corner handles
+    ctx.fillStyle = '#ffffff';
+    const corners = [
+      { x: box.x, y: box.y },
+      { x: box.x + box.width, y: box.y },
+      { x: box.x, y: box.y + box.height },
+      { x: box.x + box.width, y: box.y + box.height },
+    ];
+
+    for (const c of corners) {
+      ctx.fillRect(
+        c.x - handleSize / 2,
+        c.y - handleSize / 2,
+        handleSize,
+        handleSize
+      );
+      ctx.strokeRect(
+        c.x - handleSize / 2,
+        c.y - handleSize / 2,
+        handleSize,
+        handleSize
+      );
+    }
+
+    ctx.restore();
+  }
+
+  private static renderMarquee(
+    ctx: CanvasRenderingContext2D,
+    box: MarqueeBox,
+    zoom: number
+  ): void {
+    ctx.save();
+    // Figma marquee style: translucent sky-blue fill with clean 1px border
+    ctx.fillStyle = 'rgba(13, 153, 255, 0.08)';
+    ctx.fillRect(box.x, box.y, box.width, box.height);
+
+    ctx.strokeStyle = '#0d99ff';
+    ctx.lineWidth = 1 / zoom;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
     ctx.restore();
   }
 
