@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SceneNode, FrameNode, TextNode, PathNode, LineNode, MarkerType } from '../../types/scene';
 import { DEVICE_PRESETS, type DevicePreset } from '../../types/presets';
 import type { ToolType } from '../toolbar/Toolbar';
@@ -15,11 +15,15 @@ import {
     AlignVerticalJustifyStart,
     AlignVerticalJustifyCenter,
     AlignVerticalJustifyEnd,
+    Download,
 } from 'lucide-react';
 import { measureTextLines } from '../../utils/text';
+import { ExportEngine, type ExportFormat, type ExportScale } from '../../core/engine/ExportEngine';
 
 interface PropertiesPanelProps {
     selectedNode: SceneNode | null;
+    selectedNodes?: SceneNode[];
+    allNodes?: SceneNode[];
     onUpdate: (updates: Partial<SceneNode>) => void;
     onDelete: () => void;
     onMoveUp?: () => void;
@@ -33,6 +37,8 @@ interface PropertiesPanelProps {
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectedNode,
+    selectedNodes = [],
+    allNodes = [],
     onUpdate,
     onDelete,
     onMoveUp,
@@ -43,6 +49,26 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     activeTool,
     onInsertPreset,
 }) => {
+    const [exportFormat, setExportFormat] = useState<ExportFormat>('png');
+    const [exportScale, setExportScale] = useState<ExportScale>(1);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExport = async () => {
+        const targets = selectedNodes.length > 0 ? selectedNodes : (selectedNode ? [selectedNode] : []);
+        if (targets.length === 0) return;
+
+        setIsExporting(true);
+        try {
+            await ExportEngine.exportNodes(
+                targets,
+                { getAllNodes: () => allNodes },
+                exportFormat,
+                exportScale
+            );
+        } finally {
+            setIsExporting(false);
+        }
+    };
     if (!selectedNode) {
         return (
             <aside
@@ -1022,6 +1048,103 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </div>
                 </>
             )}
+
+            {/* Export Section (Figma style) */}
+            <hr style={{ borderColor: '#333333', borderTop: 'none', margin: '16px 0 12px 0' }} />
+            <div>
+                <div style={{ fontWeight: 500, marginBottom: 8, color: '#aaaaaa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Export</span>
+                    <span style={{ fontSize: 11, color: '#666' }}>
+                        {selectedNodes.length > 1 ? `${selectedNodes.length} items` : selectedNode.type}
+                    </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    {/* Scale Selector */}
+                    <div style={{ flex: 1, display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333' }}>
+                        {[1, 2, 3].map((sc) => (
+                            <button
+                                key={sc}
+                                type="button"
+                                onClick={() => setExportScale(sc as ExportScale)}
+                                style={{
+                                    flex: 1,
+                                    background: exportScale === sc ? '#0d99ff' : 'transparent',
+                                    color: exportScale === sc ? '#ffffff' : '#888888',
+                                    border: 'none',
+                                    borderRadius: 3,
+                                    padding: '4px 0',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.12s',
+                                }}
+                            >
+                                {sc}x
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Format Selector */}
+                    <div style={{ flex: 1, display: 'flex', background: '#1e1e1e', borderRadius: 4, border: '1px solid #333' }}>
+                        {(['png', 'svg'] as ExportFormat[]).map((fmt) => (
+                            <button
+                                key={fmt}
+                                type="button"
+                                onClick={() => setExportFormat(fmt)}
+                                style={{
+                                    flex: 1,
+                                    background: exportFormat === fmt ? '#383838' : 'transparent',
+                                    color: exportFormat === fmt ? '#ffffff' : '#888888',
+                                    border: 'none',
+                                    borderRadius: 3,
+                                    padding: '4px 0',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.12s',
+                                }}
+                            >
+                                {fmt}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Export Action Button */}
+                <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={isExporting}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        background: '#2e2e2e',
+                        border: '1px solid #444',
+                        borderRadius: 4,
+                        color: '#ffffff',
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        cursor: isExporting ? 'wait' : 'pointer',
+                        transition: 'background 0.12s, border-color 0.12s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#383838';
+                        e.currentTarget.style.borderColor = '#0d99ff';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2e2e2e';
+                        e.currentTarget.style.borderColor = '#444';
+                    }}
+                >
+                    <Download size={14} />
+                    <span>{isExporting ? 'Exporting...' : `Export ${selectedNodes.length > 1 ? 'Selection' : selectedNode.name || selectedNode.type}`}</span>
+                </button>
+            </div>
         </aside>
     );
 };

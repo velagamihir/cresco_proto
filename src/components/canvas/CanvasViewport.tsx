@@ -1150,6 +1150,8 @@ export const CanvasViewport: React.FC = () => {
             {showRightSidebar ? (
                 <PropertiesPanel
                     selectedNode={selectedNode}
+                    selectedNodes={nodesList.filter((n) => selectedIds.has(n.id))}
+                    allNodes={nodesList}
                     onUpdate={handleUpdateSelected}
                     onDelete={handleDeleteSelected}
                     onMoveUp={() => {
