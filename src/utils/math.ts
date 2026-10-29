@@ -96,6 +96,20 @@ export function distanceToSegment(p: Point, a: Point, b: Point): number {
 }
 
 /**
+ * Rotates a 2D point around an origin by a given angle in radians.
+ */
+export function rotatePoint(point: Point, origin: Point, angleRad: number): Point {
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    const dx = point.x - origin.x;
+    const dy = point.y - origin.y;
+    return {
+        x: origin.x + dx * cos - dy * sin,
+        y: origin.y + dx * sin + dy * cos,
+    };
+}
+
+/**
  * Checks if a point in 2D space falls inside a SceneNode based on its specific geometry.
  */
 export function isPointInsideNode(
@@ -106,6 +120,7 @@ export function isPointInsideNode(
         y: number;
         width: number;
         height: number;
+        rotation?: number;
         x1?: number;
         y1?: number;
         x2?: number;
@@ -113,8 +128,14 @@ export function isPointInsideNode(
         strokeWidth?: number;
     }
 ): boolean {
+    let testPoint = point;
+    if (node.rotation) {
+        const center = { x: node.x + node.width / 2, y: node.y + node.height / 2 };
+        testPoint = rotatePoint(point, center, (-node.rotation * Math.PI) / 180);
+    }
+
     if (node.type === 'ellipse') {
-        return isPointInsideEllipse(point, node);
+        return isPointInsideEllipse(testPoint, node);
     }
     if (
         node.type === 'line' &&
@@ -126,22 +147,22 @@ export function isPointInsideNode(
         const a = { x: node.x + node.x1, y: node.y + node.y1 };
         const b = { x: node.x + node.x2, y: node.y + node.y2 };
         const tolerance = Math.max(7, (node.strokeWidth || 2) + 4);
-        return distanceToSegment(point, a, b) <= tolerance;
+        return distanceToSegment(testPoint, a, b) <= tolerance;
     }
     if (node.type === 'frame') {
-        const inBody = isPointInsideBounds(point, node);
+        const inBody = isPointInsideBounds(testPoint, node);
         if (inBody) return true;
         return (
-            point.x >= node.x &&
-            point.x <= node.x + 140 &&
-            point.y >= node.y - 18 &&
-            point.y <= node.y
+            testPoint.x >= node.x &&
+            testPoint.x <= node.x + 140 &&
+            testPoint.y >= node.y - 18 &&
+            testPoint.y <= node.y
         );
     }
-    return isPointInsideBounds(point, node);
+    return isPointInsideBounds(testPoint, node);
 }
 
-export type ResizeHandleType = 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r';
+export type ResizeHandleType = 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r' | 'rot-tl' | 'rot-tr' | 'rot-bl' | 'rot-br';
 
 
 export interface HandleDescriptor {
@@ -200,15 +221,23 @@ export function isPointInsideHandle(
 
 /**
  * Hit-tests a world point against a bounding box to determine if it is touching
- * a corner handle or any of the 4 full border edges (Figma-style edge resizing).
+ * a corner handle, an outer corner rotation zone (Figma-style rotation), or any edge.
  */
 export function hitTestResizeHandles(
     point: Point,
-    bounds: { x: number; y: number; width: number; height: number },
+    bounds: { x: number; y: number; width: number; height: number; rotation?: number },
     zoom: number
 ): ResizeHandleType | null {
-    const cornerHitSize = 12 / zoom;
+    let testPoint = point;
+    if (bounds.rotation) {
+        const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        testPoint = rotatePoint(point, center, (-bounds.rotation * Math.PI) / 180);
+    }
+
+    const cornerHitSize = 10 / zoom;
     const halfCorner = cornerHitSize / 2;
+    const rotationZoneInner = 10 / zoom;
+    const rotationZoneOuter = 26 / zoom;
     const edgeTolerance = 7 / zoom;
 
     const minX = Math.min(bounds.x, bounds.x + bounds.width);
@@ -216,38 +245,56 @@ export function hitTestResizeHandles(
     const minY = Math.min(bounds.y, bounds.y + bounds.height);
     const maxY = Math.max(bounds.y, bounds.y + bounds.height);
 
-    // 1. Check 4 Corners first (they take priority)
-    if (Math.abs(point.x - minX) <= halfCorner && Math.abs(point.y - minY) <= halfCorner) {
+    // 1. Check 4 Corner Resize Handles first
+    if (Math.abs(testPoint.x - minX) <= halfCorner && Math.abs(testPoint.y - minY) <= halfCorner) {
         return 'tl';
     }
-    if (Math.abs(point.x - maxX) <= halfCorner && Math.abs(point.y - minY) <= halfCorner) {
+    if (Math.abs(testPoint.x - maxX) <= halfCorner && Math.abs(testPoint.y - minY) <= halfCorner) {
         return 'tr';
     }
-    if (Math.abs(point.x - minX) <= halfCorner && Math.abs(point.y - maxY) <= halfCorner) {
+    if (Math.abs(testPoint.x - minX) <= halfCorner && Math.abs(testPoint.y - maxY) <= halfCorner) {
         return 'bl';
     }
-    if (Math.abs(point.x - maxX) <= halfCorner && Math.abs(point.y - maxY) <= halfCorner) {
+    if (Math.abs(testPoint.x - maxX) <= halfCorner && Math.abs(testPoint.y - maxY) <= halfCorner) {
         return 'br';
     }
 
-    // 2. Check 4 Full Edges (along the entire border line)
-    const inVerticalSpan = point.y >= minY - halfCorner && point.y <= maxY + halfCorner;
-    const inHorizontalSpan = point.x >= minX - halfCorner && point.x <= maxX + halfCorner;
+    // 2. Check 4 Corner Rotation Zones (just outside the corners)
+    const distTL = Math.hypot(testPoint.x - minX, testPoint.y - minY);
+    if (distTL >= rotationZoneInner && distTL <= rotationZoneOuter) {
+        return 'rot-tl';
+    }
+    const distTR = Math.hypot(testPoint.x - maxX, testPoint.y - minY);
+    if (distTR >= rotationZoneInner && distTR <= rotationZoneOuter) {
+        return 'rot-tr';
+    }
+    const distBL = Math.hypot(testPoint.x - minX, testPoint.y - maxY);
+    if (distBL >= rotationZoneInner && distBL <= rotationZoneOuter) {
+        return 'rot-bl';
+    }
+    const distBR = Math.hypot(testPoint.x - maxX, testPoint.y - maxY);
+    if (distBR >= rotationZoneInner && distBR <= rotationZoneOuter) {
+        return 'rot-br';
+    }
+
+    // 3. Check 4 Full Edges (along the entire border line)
+    const inVerticalSpan = testPoint.y >= minY - halfCorner && testPoint.y <= maxY + halfCorner;
+    const inHorizontalSpan = testPoint.x >= minX - halfCorner && testPoint.x <= maxX + halfCorner;
 
     // Left edge
-    if (Math.abs(point.x - minX) <= edgeTolerance && inVerticalSpan) {
+    if (Math.abs(testPoint.x - minX) <= edgeTolerance && inVerticalSpan) {
         return 'l';
     }
     // Right edge
-    if (Math.abs(point.x - maxX) <= edgeTolerance && inVerticalSpan) {
+    if (Math.abs(testPoint.x - maxX) <= edgeTolerance && inVerticalSpan) {
         return 'r';
     }
     // Top edge
-    if (Math.abs(point.y - minY) <= edgeTolerance && inHorizontalSpan) {
+    if (Math.abs(testPoint.y - minY) <= edgeTolerance && inHorizontalSpan) {
         return 't';
     }
     // Bottom edge
-    if (Math.abs(point.y - maxY) <= edgeTolerance && inHorizontalSpan) {
+    if (Math.abs(testPoint.y - maxY) <= edgeTolerance && inHorizontalSpan) {
         return 'b';
     }
 

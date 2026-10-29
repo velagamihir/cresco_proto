@@ -14,6 +14,7 @@ export interface BaseNode {
     fill: string;
     stroke?: string;
     strokeWidth?: number;
+    rotation?: number; // In degrees (-180 to 180 or 0 to 360)
 }
 
 export interface RectangleNode extends BaseNode {

@@ -17,9 +17,11 @@ export interface MarqueeBox {
 }
 
 interface DragState {
-  mode: 'move' | 'resize' | 'marquee';
+  mode: 'move' | 'resize' | 'rotate' | 'marquee';
   resizeHandle?: ResizeHandleType;
   dragStartWorld: Point;
+  initialRotation?: number;
+  centerWorld?: Point;
   initialSelectedIds?: Set<string>;
   initialNodeBounds: Map<
     string,
@@ -28,6 +30,7 @@ interface DragState {
       y: number;
       width: number;
       height: number;
+      rotation?: number;
       anchors?: VectorAnchor[];
       x1?: number;
       y1?: number;
@@ -96,7 +99,7 @@ export class SelectTool {
     zoom: number,
     isShiftPressed: boolean = false
   ): boolean {
-    // 1. Check if clicking on an active resize handle or edge (single selected shape)
+    // 1. Check if clicking on an active resize or rotation handle (single selected shape)
     if (selectedIds.size === 1) {
       const selectedId = Array.from(selectedIds)[0];
       const node = sceneGraph.getNode(selectedId);
@@ -110,6 +113,7 @@ export class SelectTool {
             y: node.y,
             width: node.width,
             height: node.height,
+            rotation: node.rotation || 0,
             anchors: node.type === 'path' ? JSON.parse(JSON.stringify((node as PathNode).anchors)) : undefined,
             x1: line ? line.x1 : undefined,
             y1: line ? line.y1 : undefined,
@@ -117,12 +121,24 @@ export class SelectTool {
             y2: line ? line.y2 : undefined,
           });
 
-          this.dragState = {
-            mode: 'resize',
-            resizeHandle: hitHandle,
-            dragStartWorld: { ...worldPoint },
-            initialNodeBounds: initialMap,
-          };
+          if (hitHandle.startsWith('rot-')) {
+            const center = { x: node.x + node.width / 2, y: node.y + node.height / 2 };
+            this.dragState = {
+              mode: 'rotate',
+              resizeHandle: hitHandle,
+              dragStartWorld: { ...worldPoint },
+              initialRotation: node.rotation || 0,
+              centerWorld: center,
+              initialNodeBounds: initialMap,
+            };
+          } else {
+            this.dragState = {
+              mode: 'resize',
+              resizeHandle: hitHandle,
+              dragStartWorld: { ...worldPoint },
+              initialNodeBounds: initialMap,
+            };
+          }
           return true;
         }
       }
@@ -252,6 +268,40 @@ export class SelectTool {
           }
         }
         setSelectedIds(matchingIds);
+      }
+      return;
+    }
+
+    if (this.dragState.mode === 'rotate') {
+      const center = this.dragState.centerWorld;
+      if (!center) return;
+
+      const startAngle = Math.atan2(
+        this.dragState.dragStartWorld.y - center.y,
+        this.dragState.dragStartWorld.x - center.x
+      );
+      const currentAngle = Math.atan2(
+        worldPoint.y - center.y,
+        worldPoint.x - center.x
+      );
+
+      const angleDiffDeg = ((currentAngle - startAngle) * 180) / Math.PI;
+      let newRotation = Math.round((this.dragState.initialRotation || 0) + angleDiffDeg);
+
+      // Normalize to [0, 360)
+      newRotation = ((newRotation % 360) + 360) % 360;
+
+      // Snap to 0, 45, 90, 180, 270 if close
+      const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+      for (const snap of snapAngles) {
+        if (Math.abs(newRotation - snap) <= 3) {
+          newRotation = snap === 360 ? 0 : snap;
+          break;
+        }
+      }
+
+      for (const id of this.dragState.initialNodeBounds.keys()) {
+        sceneGraph.updateNode(id, { rotation: newRotation });
       }
       return;
     }

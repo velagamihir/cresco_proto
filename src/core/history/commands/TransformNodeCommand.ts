@@ -7,6 +7,7 @@ export interface NodeBounds {
     y: number;
     width: number;
     height: number;
+    rotation?: number;
     anchors?: VectorAnchor[];
     x1?: number;
     y1?: number;
