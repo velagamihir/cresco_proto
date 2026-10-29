@@ -10,6 +10,7 @@ import { TextTool } from '../../core/tools/TextTool';
 import { PenTool } from '../../core/tools/PenTool';
 import { LineTool } from '../../core/tools/LineTool';
 import { FrameTool } from '../../core/tools/FrameTool';
+import { AutoLayoutEngine } from '../../core/engine/AutoLayoutEngine';
 import type { DevicePreset } from '../../types/presets';
 import { HistoryManager } from '../../core/history/HistoryManager';
 import { CreateNodeCommand } from '../../core/history/commands/CreateNodeCommand';
@@ -189,8 +190,9 @@ export const CanvasViewport: React.FC = () => {
         selectedIdsRef.current = selectedIds;
     }, [selectedIds]);
 
-    // Sync React list with internal SceneGraph
+    // Sync React list with internal SceneGraph and compute AutoLayout frames
     const syncNodes = useCallback(() => {
+        AutoLayoutEngine.compute(sceneGraphRef.current);
         setNodesList([...sceneGraphRef.current.getAllNodes()]);
     }, []);
 

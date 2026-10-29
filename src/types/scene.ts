@@ -46,10 +46,17 @@ export interface EllipseNode extends BaseNode {
     type: 'ellipse';
 }
 
+export type LayoutMode = 'none' | 'horizontal' | 'vertical';
+export type LayoutAlign = 'start' | 'center' | 'end';
+
 export interface FrameNode extends BaseNode {
     type: 'frame';
     cornerRadius?: number;
     clipContent?: boolean;
+    layoutMode?: LayoutMode;
+    itemSpacing?: number;
+    padding?: number;
+    alignItems?: LayoutAlign;
 }
 
 export interface TextNode extends BaseNode {
