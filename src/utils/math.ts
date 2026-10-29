@@ -236,7 +236,6 @@ export function hitTestResizeHandles(
 
     const cornerHitSize = 10 / zoom;
     const halfCorner = cornerHitSize / 2;
-    const rotationZoneInner = 10 / zoom;
     const rotationZoneOuter = 26 / zoom;
     const edgeTolerance = 7 / zoom;
 
@@ -245,7 +244,7 @@ export function hitTestResizeHandles(
     const minY = Math.min(bounds.y, bounds.y + bounds.height);
     const maxY = Math.max(bounds.y, bounds.y + bounds.height);
 
-    // 1. Check 4 Corner Resize Handles first
+    // 1. Check 4 Corner Resize Handles first (higher precision directly on the corner box)
     if (Math.abs(testPoint.x - minX) <= halfCorner && Math.abs(testPoint.y - minY) <= halfCorner) {
         return 'tl';
     }
@@ -259,21 +258,21 @@ export function hitTestResizeHandles(
         return 'br';
     }
 
-    // 2. Check 4 Corner Rotation Zones (just outside the corners)
+    // 2. Check 4 Corner Rotation Zones (when hovering outside the corner within 24px)
     const distTL = Math.hypot(testPoint.x - minX, testPoint.y - minY);
-    if (distTL >= rotationZoneInner && distTL <= rotationZoneOuter) {
+    if (distTL <= rotationZoneOuter && (testPoint.x < minX || testPoint.y < minY)) {
         return 'rot-tl';
     }
     const distTR = Math.hypot(testPoint.x - maxX, testPoint.y - minY);
-    if (distTR >= rotationZoneInner && distTR <= rotationZoneOuter) {
+    if (distTR <= rotationZoneOuter && (testPoint.x > maxX || testPoint.y < minY)) {
         return 'rot-tr';
     }
     const distBL = Math.hypot(testPoint.x - minX, testPoint.y - maxY);
-    if (distBL >= rotationZoneInner && distBL <= rotationZoneOuter) {
+    if (distBL <= rotationZoneOuter && (testPoint.x < minX || testPoint.y > maxY)) {
         return 'rot-bl';
     }
     const distBR = Math.hypot(testPoint.x - maxX, testPoint.y - maxY);
-    if (distBR >= rotationZoneInner && distBR <= rotationZoneOuter) {
+    if (distBR <= rotationZoneOuter && (testPoint.x > maxX || testPoint.y > maxY)) {
         return 'rot-br';
     }
 
